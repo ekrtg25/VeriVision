@@ -1,0 +1,22 @@
+# Deep Learning & Computer Vision
+torch
+torchvision
+torchaudio
+opencv-python-headless
+Pillow
+
+# Data Processing
+numpy
+pandas
+scikit-learn
+matplotlib
+
+# MLOps & Tracking
+mlflow
+wandb
+tqdm
+
+# API (на будущее)
+fastapi
+uvicorn
+python-multipart
