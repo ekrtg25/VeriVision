@@ -1,4 +1,5 @@
 import argparse
+import os
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
@@ -124,6 +125,13 @@ def main():
         print(f"Эпоха {epoch}/{args.epochs} | "
               f"Train Loss: {train_m['loss']:.4f}, Acc: {train_m['accuracy']*100:.1f}% | "
               f"Val Loss: {val_m['loss']:.4f}, Acc: {val_m['accuracy']*100:.1f}%, ROC-AUC: {val_m['roc_auc']:.4f}")
+
+    # === ДОБАВЛЕННЫЙ БЛОК СОХРАНЕНИЯ ВЕСОВ ===
+    os.makedirs("models", exist_ok=True)
+    save_path = f"models/{args.model_type}_weights.pth"
+    torch.save(model.state_dict(), save_path)
+    print(f"💾 Веса модели успешно сохранены в: {save_path}")
+    # ==========================================
 
     print(f"✅ Эксперимент для [{args.model_type}] успешно завершен!\n")
 
