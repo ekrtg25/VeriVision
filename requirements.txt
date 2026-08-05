@@ -5,6 +5,7 @@ torchaudio
 opencv-python
 pillow
 albumentations
+open_clip_torch
 
 # Data Science & Analytics
 numpy
@@ -12,6 +13,8 @@ pandas
 scikit-learn
 matplotlib
 seaborn
+datasets
+kagglehub
 
 # MLOps, Logging & Utilities
 mlflow
