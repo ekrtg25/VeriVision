@@ -53,17 +53,18 @@ def run_epoch(model, dataloader, criterion, optimizer, device, is_train: bool = 
 
             running_loss += loss.item() * images.size(0)
 
-            # Получаем вероятности через Сигмоиду
-            probs = torch.sigmoid(outputs)
+            # Получаем вероятности через Сигмоиду и ЯВНО отвязываем от графа (detach)
+            probs = torch.sigmoid(outputs).detach()
 
-            all_targets.append(labels.cpu())
+            all_targets.append(labels.detach().cpu())
             all_probs.append(probs.cpu())
 
     total_samples = len(dataloader.dataset)
     epoch_loss = running_loss / total_samples if total_samples > 0 else 0.0
 
-    y_true = torch.cat(all_targets).numpy()
-    y_probs = torch.cat(all_probs).numpy()
+    # Конкатенируем и переводим в numpy без ошибок
+    y_true = torch.cat(all_targets).detach().numpy()
+    y_probs = torch.cat(all_probs).detach().numpy()
 
     metrics = compute_metrics(y_true, y_probs)
     metrics["loss"] = epoch_loss
