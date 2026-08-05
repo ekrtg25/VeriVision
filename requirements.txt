@@ -1,22 +1,26 @@
-# Deep Learning & Computer Vision
+# Deep Learning & CV Frameworks
 torch
 torchvision
 torchaudio
-opencv-python-headless
-Pillow
+opencv-python
+pillow
+albumentations
 
-# Data Processing
+# Data Science & Analytics
 numpy
 pandas
 scikit-learn
 matplotlib
+seaborn
 
-# MLOps & Tracking
+# MLOps, Logging & Utilities
 mlflow
 wandb
 tqdm
+pyyaml
 
-# API (на будущее)
+# API & Web Interface (для следующих этапов)
 fastapi
 uvicorn
 python-multipart
+requests

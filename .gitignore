@@ -1,0 +1,52 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Virtual environment
+venv/
+.venv/
+env/
+ENV/
+
+# Data & Models (ВАЖНО для ML-проектов)
+data/raw/*
+data/processed/*
+!data/raw/.gitkeep
+!data/processed/.gitkeep
+*.pt
+*.pth
+*.onnx
+*.bin
+*.h5
+*.ckpt
+*.safetensors
+*.bin
+
+# MLflow & W&B outputs
+mlruns/
+wandb/
+.wandb/
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+*-checkpoint.ipynb
+
+# Environment variables & secrets (API keys)
+.env
+.env.local
+
+# IDEs & Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# macOS Specific
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
