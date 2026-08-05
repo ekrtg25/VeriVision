@@ -50,3 +50,22 @@ wandb/
 .AppleDouble
 .LSOverride
 ._*
+temp_upload.jpg
+temp_cam.jpg
+
+# Исключаем локальные датасеты для обучения и файн-тюнинга
+data/
+data/finetune/
+data/finetune/real/
+data/finetune/fake/
+
+# Исключаем веса моделей (обычно их хранят отдельно, например на Hugging Face/S3)
+models/*.pth
+
+# Кэш Python и временные файлы macOS / IDE
+__pycache__/
+*.pyc
+.DS_Store
+.vscode/
+.idea/
+.streamlit/

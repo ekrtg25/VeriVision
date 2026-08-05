@@ -27,3 +27,4 @@ fastapi
 uvicorn
 python-multipart
 requests
+streamlit
