@@ -68,7 +68,7 @@ def load_engine():
     )
 
 st.title("VERIVISION // FORENSIC ANALYSIS ENGINE")
-st.text("SYSTEM: ONLINE | ARCHITECTURE: CNN + ViT ENSEMBLE | XAI: GRAD-CAM")
+st.text("SYSTEM: ONLINE | ARCHITECTURE: RESNET-50 (ONLY MODE) | XAI: GRAD-CAM")
 st.markdown("---")
 
 engine = load_engine()
@@ -110,7 +110,7 @@ with col_analysis:
         log_container.text("\n".join(logs))
         time.sleep(0.3)
         
-        logs.append("[model] Running CLIP Vision Transformer...")
+        logs.append("[model] Running CLIP Vision Transformer (Bypassed)...")
         log_container.text("\n".join(logs))
         
         # Инференс ансамбля
@@ -118,8 +118,15 @@ with col_analysis:
         result = engine.predict(temp_path, mode="max", threshold=0.35)
         exec_time = time.time() - start_time
         
+        # ВРЕМЕННЫЙ ТЕСТ: Полностью отключаем влияние CLIP, опираемся только на ResNet
+        result['ensemble_prob'] = result['baseline_prob']
+        if result['ensemble_prob'] >= result['threshold_used']:
+            result['prediction'] = "Fake"
+        else:
+            result['prediction'] = "Real"
+
         logs.append("[xai] Generating Grad-CAM activation map...")
-        logs.append("[ensemble] Calculating adaptive weighted probabilities...")
+        logs.append("[ensemble] Single-Model Evaluation Mode (ResNet Pure)...")
         logs.append(f"[sys] Analysis complete in {exec_time:.2f}s.")
         log_container.text("\n".join(logs))
         
@@ -129,7 +136,7 @@ with col_analysis:
         formatted_json = json.dumps({
             "status": "COMPLETED",
             "execution_time_ms": int(exec_time * 1000),
-            "ensemble_mode": result['mode_used'],
+            "ensemble_mode": "resnet_only (temp)",
             "decision_threshold": result['threshold_used'],
             "baseline_probability": round(result['baseline_prob'], 4),
             "clip_probability": round(result['clip_prob'], 4),
@@ -141,7 +148,20 @@ with col_analysis:
         st.markdown("---")
         st.subheader("VERDICT")
         
+        fake_prob = result["ensemble_prob"] * 100
+        real_prob = (1 - result["ensemble_prob"]) * 100
+        
         if result['prediction'] == "Fake":
-            st.markdown(f'<div class="status-fake">>> SYNTHETIC MEDIA DETECTED ({result["ensemble_prob"]*100:.1f}%)</div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="status-fake">>> SYNTHETIC MEDIA DETECTED</div>', unsafe_allow_html=True)
         else:
-            st.markdown(f'<div class="status-real">>> AUTHENTIC MEDIA VERIFIED ({(1 - result["ensemble_prob"])*100:.1f}%)</div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="status-real">>> AUTHENTIC MEDIA VERIFIED</div>', unsafe_allow_html=True)
+
+        st.markdown("#### PROBABILITY BREAKDOWN")
+        col_res1, col_res2 = st.columns(2)
+        with col_res1:
+            st.metric("🤖 FAKE (Synthetic)", f"{fake_prob:.1f}%")
+        with col_res2:
+            st.metric("📷 REAL (Authentic)", f"{real_prob:.1f}%")
+
+        st.caption("Synthetic Probability Scale:")
+        st.progress(float(result["ensemble_prob"]))
