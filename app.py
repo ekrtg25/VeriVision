@@ -100,7 +100,7 @@ with col_analysis:
         log_container.text("\n".join(logs))
         
         start_time = time.time()
-        result = engine.predict(temp_path, mode="uncertainty", threshold=0.50)
+        result = engine.predict(temp_path, mode="uncertainty", threshold=0.49)
         exec_time = time.time() - start_time
         
         logs.append("[xai] Generating Grad-CAM activation map...")
