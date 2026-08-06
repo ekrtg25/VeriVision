@@ -1,38 +1,20 @@
 import torch
 import torch.nn as nn
 from torchvision.models import resnet50, ResNet50_Weights
+from torchvision import models
 
 class BaselineDetector(nn.Module):
-    """
-    Базовая модель для бинарной детекции AI-сгенерированных изображений.
-    Использует предобученный ResNet50 с замененным классификатором.
-    """
-    def __init__(self, num_classes: int = 1, pretrained: bool = True, freeze_backbone: bool = False):
+    def __init__(self, pretrained=True):
         super().__init__()
+        weights = models.ConvNeXt_Tiny_Weights.DEFAULT if pretrained else None
+        self.model = models.convnext_tiny(weights=weights)
         
-        # Загружаем веса, если нужно
-        weights = ResNet50_Weights.DEFAULT if pretrained else None
-        self.backbone = resnet50(weights=weights)
-        
-        # Опциональная заморозка feature extractor'а (полезно для быстрого старта)
-        if freeze_backbone:
-            for param in self.backbone.parameters():
-                param.requires_grad = False
-                
-        # Заменяем последний слой
-        # Если num_classes = 1, используем BCEWithLogitsLoss (рекомендуется для бинарной классификации)
-        # Если num_classes = 2, используем CrossEntropyLoss
-        in_features = self.backbone.fc.in_features
-        self.backbone.fc = nn.Linear(in_features, num_classes)
+        # Меняем финальный слой классификатора под бинарный вывод
+        num_ftrs = self.model.classifier[2].in_features
+        self.model.classifier[2] = nn.Linear(num_ftrs, 1)
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        """
-        Args:
-            x: Тензор изображений размерности (B, C, H, W)
-        Returns:
-            Логиты предсказаний размерности (B, num_classes)
-        """
-        return self.backbone(x)
+    def forward(self, x):
+        return self.model(x)
 
 # Проверка работоспособности архитектуры при прямом запуске скрипта
 if __name__ == "__main__":
