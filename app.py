@@ -1,145 +1,106 @@
-import sys
-import os
-
-CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
-if CURRENT_DIR not in sys.path:
-    sys.path.insert(0, CURRENT_DIR)
-
 import streamlit as st
 import time
-import torch
-import json
+import os
 from PIL import Image
-
 from src.models.ensemble import EnsembleDetector
-from src.models.gradcam import ResNetGradCAM
 
-st.set_page_config(page_title="VeriVision Engine", layout="wide", initial_sidebar_state="collapsed")
-
-st.markdown("""
-    <style>
-    #MainMenu {visibility: hidden;}
-    footer {visibility: hidden;}
-    header {visibility: hidden;}
-    
-    html, body, [class*="css"]  {
-        font-family: 'Courier New', Courier, monospace !important;
-    }
-    
-    .stContainer {
-        border: 1px solid #333333;
-        padding: 15px;
-    }
-    
-    .status-fake {
-        color: #ff4444;
-        font-weight: bold;
-        font-size: 1.1rem;
-    }
-    
-    .status-real {
-        color: #00cc66;
-        font-weight: bold;
-        font-size: 1.1rem;
-    }
-    </style>
-""", unsafe_allow_html=True)
-
+# Инициализация базового движка (кешируем, чтобы не грузить веса каждый раз)
 @st.cache_resource
-def load_engine():
-    device = torch.device("mps" if torch.backends.mps.is_available() else "cuda" if torch.cuda.is_available() else "cpu")
+def load_fast_engine():
     return EnsembleDetector(
-        baseline_weights_path="models/baseline_weights.pth",
-        clip_weights_path="models/clip_weights.pth",
-        device=device
+        baseline_weights_path="models/baseline_weights.pth", 
+        clip_weights_path="models/clip_vit_l_weights.pth"
     )
 
-st.title("VERIVISION // FORENSIC ANALYSIS ENGINE")
-st.text("SYSTEM: ONLINE | ARCHITECTURE: CONVNEXT + ViT ENSEMBLE | FUSION: UNCERTAINTY-WEIGHTED")
-st.markdown("---")
+fast_engine = load_fast_engine()
 
-engine = load_engine()
-
-col_img, col_cam, col_analysis = st.columns([1, 1, 1.2])
-
-temp_path = "temp_upload.jpg"
-
-with col_img:
-    st.subheader("TARGET IMAGE")
-    uploaded_file = st.file_uploader("UPLOAD FILE (JPEG/PNG)", type=["jpg", "jpeg", "png"], label_visibility="collapsed")
+def main():
+    st.set_page_config(page_title="VeriVision", page_icon="👁️", layout="wide")
     
-    if uploaded_file is not None:
-        image = Image.open(uploaded_file)
-        st.image(image, use_container_width=True, output_format="JPEG")
-        image.convert("RGB").save(temp_path)
+    st.title("👁️ VeriVision: AI Image Detector")
+    st.markdown("Загрузи изображение, чтобы проверить, создано ли оно искусственным интеллектом.")
 
-with col_cam:
-    st.subheader("HEATMAP (Grad-CAM)")
-    if uploaded_file is not None:
-        try:
-            grad_cam_engine = ResNetGradCAM(engine.baseline)
-            heatmap_img = grad_cam_engine.generate_heatmap(temp_path)
-            st.image(heatmap_img, caption="ConvNeXt Feature Activations", use_container_width=True)
-        except Exception as e:
-            st.error(f"Grad-CAM Error: {e}")
-
-with col_analysis:
-    st.subheader("ANALYSIS LOG")
-    log_container = st.empty()
-    
-    if uploaded_file is not None:
-        logs = ["[sys] Image loaded into memory...", "[sys] Extracting features..."]
-        log_container.text("\n".join(logs))
-        time.sleep(0.1)
-        
-        logs.append("[model] Running ConvNeXt-Tiny Architecture...")
-        log_container.text("\n".join(logs))
-        time.sleep(0.1)
-        
-        logs.append("[model] Running CLIP Vision Transformer (L2-Normalized)...")
-        log_container.text("\n".join(logs))
-        
-        start_time = time.time()
-        result = engine.predict(temp_path, mode="uncertainty", threshold=0.49)
-        exec_time = time.time() - start_time
-        
-        logs.append("[xai] Generating Grad-CAM activation map...")
-        logs.append("[ensemble] Computing Uncertainty-Weighted Entropy Fusion...")
-        logs.append(f"[sys] Analysis complete in {exec_time:.2f}s.")
-        log_container.text("\n".join(logs))
+    # Боковая панель для настроек
+    with st.sidebar:
+        st.header("⚙️ Настройки сканирования")
+        # Наш идеальный порог, который мы вычислили ранее
+        threshold = st.slider("Threshold (Порог)", min_value=0.0, max_value=1.0, value=0.49, step=0.01)
         
         st.markdown("---")
-        st.subheader("RAW METRICS")
-        
-        formatted_json = json.dumps({
-            "status": "COMPLETED",
-            "execution_time_ms": int(exec_time * 1000),
-            "ensemble_mode": result['mode_used'],
-            "decision_threshold": result['threshold_used'],
-            "convnext_probability": round(result['baseline_prob'], 4),
-            "clip_probability": round(result['clip_prob'], 4),
-            "ensemble_probability": round(result['ensemble_prob'], 4)
-        }, indent=4)
-        
-        st.code(formatted_json, language="json")
-        
-        st.markdown("---")
-        st.subheader("VERDICT")
-        
-        fake_prob = result["ensemble_prob"] * 100
-        real_prob = (1 - result["ensemble_prob"]) * 100
-        
-        if result['prediction'] == "Fake":
-            st.markdown(f'<div class="status-fake">>> SYNTHETIC MEDIA DETECTED ({fake_prob:.1f}%)</div>', unsafe_allow_html=True)
-        else:
-            st.markdown(f'<div class="status-real">>> AUTHENTIC MEDIA VERIFIED ({real_prob:.1f}%)</div>', unsafe_allow_html=True)
+        st.info("**Fast Scan**: Мгновенный анализ через ConvNeXt и CLIP (ViT-L/14).\n\n**Deep Scan**: Тяжелый математический анализ (DIRE + FFT) для SOTA генераторов (Midjourney, Stable Diffusion, GANs).")
 
-        st.markdown("#### PROBABILITY BREAKDOWN")
-        col_res1, col_res2 = st.columns(2)
-        with col_res1:
-            st.metric("🤖 FAKE (Synthetic)", f"{fake_prob:.1f}%")
-        with col_res2:
-            st.metric("📷 REAL (Authentic)", f"{real_prob:.1f}%")
+    uploaded_file = st.file_uploader("Выбери изображение (JPG/PNG)", type=["jpg", "jpeg", "png"])
 
-        st.caption("Synthetic Probability Scale:")
-        st.progress(float(result["ensemble_prob"]))
+    if uploaded_file is not None:
+        # Отображаем картинку и интерфейс в две колонки
+        col1, col2 = st.columns([1, 1])
+        
+        with col1:
+            image = Image.open(uploaded_file).convert("RGB")
+            st.image(image, caption="Загруженное изображение", use_column_width=True)
+            
+            # Сохраняем во временный файл для движка
+            temp_path = "temp_upload.jpg"
+            image.save(temp_path)
+
+        with col2:
+            st.subheader("Режим анализа")
+            
+            # Тот самый переключатель режимов
+            scan_mode = st.radio(
+                "Выберите глубину проверки:",
+                ["⚡ Fast Scan (Базовый ансамбль)", "🔬 Deep Forensic Scan (DIRE + FFT)"],
+                index=0,
+                horizontal=True
+            )
+
+            analyze_button = st.button("Начать анализ", type="primary", use_container_width=True)
+
+            if analyze_button:
+                st.markdown("---")
+                
+                if "Fast Scan" in scan_mode:
+                    with st.spinner("Выполняется быстрый анализ..."):
+                        # Запускаем наш текущий ансамбль
+                        result = fast_engine.predict(temp_path, mode="uncertainty", threshold=threshold)
+                        
+                        st.subheader("Результат (Fast Scan)")
+                        if result["prediction"] == "Fake":
+                            st.error(f"🚨 ОБНАРУЖЕН ФЕЙК (Уверенность: {result['ensemble_prob']:.1%})")
+                        else:
+                            st.success(f"✅ РЕАЛЬНОЕ ФОТО (Уверенность: {1 - result['ensemble_prob']:.1%})")
+                        
+                        st.progress(result['ensemble_prob'])
+                        st.caption(f"ConvNeXt: {result['baseline_prob']:.1%} | CLIP ViT-L/14: {result['clip_prob']:.1%}")
+
+                else:
+                    # Режим Deep Scan (пока с визуальными заглушками)
+                    st.subheader("Результат (Deep Forensic Scan)")
+                    
+                    # Имитация работы DIRE (скоро заменим на реальный код)
+                    with st.status("Проведение глубокого анализа...", expanded=True) as status:
+                        st.write("🔄 Шаг 1/3: Инициализация базового ансамбля...")
+                        fast_result = fast_engine.predict(temp_path, mode="uncertainty", threshold=threshold)
+                        time.sleep(0.5)
+                        
+                        st.write("🧬 Шаг 2/3: Вычисление ошибки реконструкции диффузии (DIRE)...")
+                        # TODO: Здесь будет вызов DIRE
+                        time.sleep(1.5)
+                        
+                        st.write("📡 Шаг 3/3: Анализ частотного спектра на следы апсемплинга (FFT)...")
+                        # TODO: Здесь будет вызов FFT
+                        time.sleep(1.0)
+                        
+                        status.update(label="Анализ завершен!", state="complete", expanded=False)
+
+                    # Временный мокап результата для глубокого сканирования
+                    st.warning("⚠️ Deep Scan выявил аномалии. Ожидайте подключения математических модулей.")
+                    
+                    col_a, col_b, col_c = st.columns(3)
+                    col_a.metric(label="Базовый скор", value=f"{fast_result['ensemble_prob']:.1%}")
+                    col_b.metric(label="DIRE Скоринг", value="В разработке")
+                    col_c.metric(label="FFT Аномалии", value="В разработке")
+
+        # Удаляем временный файл
+        if os.path.exists(temp_path):
+            os.remove(temp_path)
