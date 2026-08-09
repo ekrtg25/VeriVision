@@ -4,9 +4,10 @@ import numpy as np
 from sklearn.metrics import f1_score, precision_score, recall_score, accuracy_score, roc_curve
 from tqdm import tqdm
 
-from src.models.ensemble import EnsembleDetector
+# Подключаем нашу новую "Троицу"
+from src.models.ensemble import HybridEnsembleDetector
 
-def evaluate_dataset(engine, dataset_name, base_path, threshold=0.46):
+def evaluate_dataset(engine, dataset_name, base_path, threshold=0.49):
     real_files = glob.glob(os.path.join(base_path, "real", "*.*"))
     fake_files = glob.glob(os.path.join(base_path, "fake", "*.*"))
     
@@ -26,8 +27,8 @@ def evaluate_dataset(engine, dataset_name, base_path, threshold=0.46):
     ensemble_probs = []
     
     for path in tqdm(image_paths, desc=dataset_name):
-        # Используем режим uncertainty
-        result = engine.predict(path, mode="uncertainty")
+        # Вызываем предикт без mode="uncertainty"
+        result = engine.predict(path, threshold=threshold)
         ensemble_probs.append(result["ensemble_prob"])
         
     ensemble_probs = np.array(ensemble_probs)
@@ -49,10 +50,12 @@ def evaluate_dataset(engine, dataset_name, base_path, threshold=0.46):
     return metrics
 
 def main():
-    # Фиксируем порог, который мы подобрали на калибровке
+    # Оставляем порог 0.49
     THRESHOLD = 0.49
-    print("[sys] Initializing Calibrated Ensemble Detector...")
-    engine = EnsembleDetector()
+    print("[sys] Initializing Hybrid Ensemble Detector...")
+    
+    # Инициализируем наш новый гибридный ансамбль
+    engine = HybridEnsembleDetector()
     
     datasets = {
         "Midjourney V6": "data/ood/midjourney_v6"

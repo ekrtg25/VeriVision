@@ -1,106 +1,106 @@
 import streamlit as st
-import time
 import os
 from PIL import Image
-from src.models.ensemble import EnsembleDetector
+from src.models.ensemble import HybridEnsembleDetector
 
-# Инициализация базового движка (кешируем, чтобы не грузить веса каждый раз)
+# Кешируем загрузку всех трех моделей, чтобы инференс был мгновенным
 @st.cache_resource
-def load_fast_engine():
-    return EnsembleDetector(
-        baseline_weights_path="models/baseline_weights.pth", 
-        clip_weights_path="models/clip_vit_l_weights.pth"
+def load_engine():
+    return HybridEnsembleDetector(
+        cnn_weights="models/baseline_weights.pth", 
+        fft_weights="models/rf_spectral.pkl", 
+        srm_weights="models/rf_srm.pkl"
     )
 
-fast_engine = load_fast_engine()
+engine = load_engine()
 
 def main():
     st.set_page_config(page_title="VeriVision", page_icon="👁️", layout="wide")
     
     st.title("👁️ VeriVision: AI Image Detector")
-    st.markdown("Загрузи изображение, чтобы проверить, создано ли оно искусственным интеллектом.")
+    st.markdown("Гибридный детектор генеративных изображений. Анализирует пиксели, частотный спектр и матричный шум.")
 
-    # Боковая панель для настроек
+    # Боковая панель с настройками
     with st.sidebar:
-        st.header("⚙️ Настройки сканирования")
-        # Наш идеальный порог, который мы вычислили ранее
-        threshold = st.slider("Threshold (Порог)", min_value=0.0, max_value=1.0, value=0.49, step=0.01)
+        st.header("⚙️ Настройки")
+        threshold = st.slider("Порог срабатывания (Threshold)", min_value=0.0, max_value=1.0, value=0.50, step=0.01)
+        
+        # Интерактивная справка для пользователя
+        with st.expander("ℹ️ Как работает этот порог?"):
+            st.markdown(
+                "Этот ползунок управляет балансом между строгой проверкой и перестраховкой алгоритма. "
+                "Он задает минимальную вероятность, при которой ансамбль выносит вердикт **Fake**.\n\n"
+                "* **Высокий порог (0.70 - 0.90):** Режим высокой точности (High Precision). Детектор назовет изображение фейком только при абсолютной уверенности всех алгоритмов. Защищает реальные фото от ложных обвинений, но может пропустить хитрые дипфейки.\n"
+                "* **Низкий порог (0.10 - 0.30):** Режим параноика (High Recall). Система бракует всё, что кажется подозрительным хотя бы одному модулю. Блокирует 100% фейков, но будет часто ошибаться на реальных фото с тяжелой цветокоррекцией.\n"
+                "* **Золотая середина (0.50):** Простое большинство голосов."
+            )
         
         st.markdown("---")
-        st.info("**Fast Scan**: Мгновенный анализ через ConvNeXt и CLIP (ViT-L/14).\n\n**Deep Scan**: Тяжелый математический анализ (DIRE + FFT) для SOTA генераторов (Midjourney, Stable Diffusion, GANs).")
+        st.info(
+            "**Архитектура (Hybrid Ensemble):**\n\n"
+            "🧠 **Визуальный эксперт (ConvNeXt):** Ищет артефакты пикселей и поплывшие текстуры.\n\n"
+            "📡 **Спектральный эксперт (FFT):** Выявляет аномалии апсемплинга в частотной области.\n\n"
+            "🔬 **Шумовой эксперт (SRM):** Анализирует синтетический матричный шум."
+        )
 
-    uploaded_file = st.file_uploader("Выбери изображение (JPG/PNG)", type=["jpg", "jpeg", "png"])
+    uploaded_file = st.file_uploader("Загрузите изображение (JPG/PNG)", type=["jpg", "jpeg", "png"])
 
     if uploaded_file is not None:
-        # Отображаем картинку и интерфейс в две колонки
-        col1, col2 = st.columns([1, 1])
+        col1, col2 = st.columns([1, 1.2])
+        
+        temp_path = "temp_upload.jpg"
         
         with col1:
             image = Image.open(uploaded_file).convert("RGB")
-            st.image(image, caption="Загруженное изображение", use_column_width=True)
-            
-            # Сохраняем во временный файл для движка
-            temp_path = "temp_upload.jpg"
+            st.image(image, caption="Загруженное изображение", use_container_width=True)
             image.save(temp_path)
 
         with col2:
-            st.subheader("Режим анализа")
+            st.subheader("Результат анализа")
             
-            # Тот самый переключатель режимов
-            scan_mode = st.radio(
-                "Выберите глубину проверки:",
-                ["⚡ Fast Scan (Базовый ансамбль)", "🔬 Deep Forensic Scan (DIRE + FFT)"],
-                index=0,
-                horizontal=True
+            with st.spinner("Просвечиваем изображение..."):
+                result = engine.predict(temp_path, threshold=threshold)
+            
+            # Главный вердикт
+            if result["prediction"] == "Fake":
+                st.error(f"🚨 ОБНАРУЖЕН СГЕНЕРИРОВАННЫЙ КОНТЕНТ (Уверенность: {result['ensemble_prob']:.1%})")
+            else:
+                st.success(f"✅ РЕАЛЬНОЕ ФОТО (Уверенность: {1 - result['ensemble_prob']:.1%})")
+            
+            st.progress(result['ensemble_prob'])
+            st.markdown("---")
+            
+            st.markdown("### Детализация по экспертам")
+            
+            # Метрики от каждого узкого специалиста
+            c1, c2, c3 = st.columns(3)
+            
+            c1.metric(
+                label="🧠 Визуальный (ConvNeXt)", 
+                value=f"{result['cnn_prob']:.1%}",
+                delta="Fake" if result['cnn_prob'] >= 0.5 else "Real",
+                delta_color="inverse" if result['cnn_prob'] >= 0.5 else "normal"
             )
+            
+            c2.metric(
+                label="📡 Спектр (FFT)", 
+                value=f"{result['fft_prob']:.1%}",
+                delta="Fake" if result['fft_prob'] >= 0.5 else "Real",
+                delta_color="inverse" if result['fft_prob'] >= 0.5 else "normal"
+            )
+            
+            c3.metric(
+                label="🔬 Шум (SRM)", 
+                value=f"{result['srm_prob']:.1%}",
+                delta="Fake" if result['srm_prob'] >= 0.5 else "Real",
+                delta_color="inverse" if result['srm_prob'] >= 0.5 else "normal"
+            )
+            
+            st.caption("Если мнения экспертов расходятся, итоговое решение принимается путем усреднения вероятностей.")
 
-            analyze_button = st.button("Начать анализ", type="primary", use_container_width=True)
-
-            if analyze_button:
-                st.markdown("---")
-                
-                if "Fast Scan" in scan_mode:
-                    with st.spinner("Выполняется быстрый анализ..."):
-                        # Запускаем наш текущий ансамбль
-                        result = fast_engine.predict(temp_path, mode="uncertainty", threshold=threshold)
-                        
-                        st.subheader("Результат (Fast Scan)")
-                        if result["prediction"] == "Fake":
-                            st.error(f"🚨 ОБНАРУЖЕН ФЕЙК (Уверенность: {result['ensemble_prob']:.1%})")
-                        else:
-                            st.success(f"✅ РЕАЛЬНОЕ ФОТО (Уверенность: {1 - result['ensemble_prob']:.1%})")
-                        
-                        st.progress(result['ensemble_prob'])
-                        st.caption(f"ConvNeXt: {result['baseline_prob']:.1%} | CLIP ViT-L/14: {result['clip_prob']:.1%}")
-
-                else:
-                    # Режим Deep Scan (пока с визуальными заглушками)
-                    st.subheader("Результат (Deep Forensic Scan)")
-                    
-                    # Имитация работы DIRE (скоро заменим на реальный код)
-                    with st.status("Проведение глубокого анализа...", expanded=True) as status:
-                        st.write("🔄 Шаг 1/3: Инициализация базового ансамбля...")
-                        fast_result = fast_engine.predict(temp_path, mode="uncertainty", threshold=threshold)
-                        time.sleep(0.5)
-                        
-                        st.write("🧬 Шаг 2/3: Вычисление ошибки реконструкции диффузии (DIRE)...")
-                        # TODO: Здесь будет вызов DIRE
-                        time.sleep(1.5)
-                        
-                        st.write("📡 Шаг 3/3: Анализ частотного спектра на следы апсемплинга (FFT)...")
-                        # TODO: Здесь будет вызов FFT
-                        time.sleep(1.0)
-                        
-                        status.update(label="Анализ завершен!", state="complete", expanded=False)
-
-                    # Временный мокап результата для глубокого сканирования
-                    st.warning("⚠️ Deep Scan выявил аномалии. Ожидайте подключения математических модулей.")
-                    
-                    col_a, col_b, col_c = st.columns(3)
-                    col_a.metric(label="Базовый скор", value=f"{fast_result['ensemble_prob']:.1%}")
-                    col_b.metric(label="DIRE Скоринг", value="В разработке")
-                    col_c.metric(label="FFT Аномалии", value="В разработке")
-
-        # Удаляем временный файл
+        # Очистка временного файла
         if os.path.exists(temp_path):
             os.remove(temp_path)
+
+if __name__ == "__main__":
+    main()
