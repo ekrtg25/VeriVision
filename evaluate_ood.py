@@ -5,7 +5,7 @@ from sklearn.metrics import f1_score, precision_score, recall_score, accuracy_sc
 from tqdm import tqdm
 
 # Подключаем нашу новую "Троицу"
-from src.models.ensemble import HybridEnsembleDetector
+from src.serving.ensemble import HybridEnsembleDetector
 
 def evaluate_dataset(engine, dataset_name, base_path, threshold=0.49):
     real_files = glob.glob(os.path.join(base_path, "real", "*.*"))

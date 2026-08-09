@@ -1,7 +1,7 @@
 import streamlit as st
 import os
 from PIL import Image
-from src.models.ensemble import HybridEnsembleDetector
+from src.serving.ensemble import HybridEnsembleDetector
 
 # Кешируем загрузку всех трех моделей, чтобы инференс был мгновенным
 @st.cache_resource
