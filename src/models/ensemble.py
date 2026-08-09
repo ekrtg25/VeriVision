@@ -10,6 +10,11 @@ from src.models.baseline_cnn import BaselineDetector
 from src.models.fft_module import SpectralAnalyzer
 from src.models.srm_module import SRMAnalyzer
 
+# Функция перевода в логиты (как просил Клод)
+def to_logit(p, eps=1e-4):
+    p = min(max(p, eps), 1 - eps)
+    return math.log(p / (1 - p))
+
 class HybridEnsembleDetector:
     def __init__(self, cnn_weights="models/baseline_weights.pth", 
                  fft_weights="models/rf_spectral.pkl", 
@@ -38,6 +43,7 @@ class HybridEnsembleDetector:
         self.rf_srm = joblib.load(srm_weights) if os.path.exists(srm_weights) else None
 
     def predict(self, image_path, threshold=0.50):
+        # 1. Извлечение признаков и сырых вероятностей
         raw_image = Image.open(image_path).convert("RGB")
         img_tensor = self.cnn_transform(raw_image).unsqueeze(0).to(self.device)
         
@@ -57,22 +63,39 @@ class HybridEnsembleDetector:
             if srm_features is not None:
                 srm_prob = self.rf_srm.predict_proba([srm_features])[0][1]
 
-        # 1. Возвращаем наше золотое среднее (которое дает 92.5% Accuracy)
-        raw_ensemble_prob = (cnn_prob + fft_prob + srm_prob) / 3.0
+        # =========================================================
+        # 2. CONFIDENCE-WEIGHTED LOGIT FUSION (Архитектура Клода)
+        # =========================================================
+        k = 2.0  # Гиперпараметр: возводим уверенность в квадрат
+        
+        # Переводим в пространство логитов
+        l_cnn = to_logit(cnn_prob)
+        l_fft = to_logit(fft_prob)
+        l_srm = to_logit(srm_prob)
+        
+        # Считаем веса на основе абсолютной уверенности (модуль логита)
+        w_cnn = abs(l_cnn) ** k
+        w_fft = abs(l_fft) ** k
+        w_srm = abs(l_srm) ** k
+        
+        sum_w = w_cnn + w_fft + w_srm
+        
+        # Взвешенное суммирование (с защитой от деления на ноль, если все не уверены)
+        if sum_w < 1e-6:
+            fused_logit = 0.0
+        else:
+            fused_logit = (w_cnn * l_cnn + w_fft * l_fft + w_srm * l_srm) / sum_w
+            
+        # Возвращаем откалиброванный логит обратно в вероятность
+        final_prob = 1.0 / (1.0 + math.exp(-fused_logit))
+        # =========================================================
 
-        # 2. Магия: Температурная калибровка (растягиваем уверенность)
-        # Если модели чуть сомневаются (0.6), мы делаем их уверенными (0.8)
-        # При этом баланс >0.5 или <0.5 сохраняется идеально!
-        temperature = 6.0 
-        calibrated_logit = (raw_ensemble_prob - 0.5) * temperature
-        calibrated_prob = 1.0 / (1.0 + math.exp(-calibrated_logit))
-
-        prediction = "Fake" if calibrated_prob >= threshold else "Real"
+        prediction = "Fake" if final_prob >= threshold else "Real"
 
         return {
             "prediction": prediction,
-            "ensemble_prob": calibrated_prob, # Отдаем на фронтенд растянутую вероятность
-            "cnn_prob": cnn_prob,             # Честные вероятности экспертов оставляем для детализации
+            "ensemble_prob": final_prob,
+            "cnn_prob": cnn_prob,
             "fft_prob": fft_prob,
             "srm_prob": srm_prob
         }

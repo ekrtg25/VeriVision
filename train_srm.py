@@ -4,6 +4,7 @@ import os
 import joblib
 from src.models.srm_module import SRMAnalyzer
 from sklearn.ensemble import RandomForestClassifier
+from sklearn.calibration import CalibratedClassifierCV
 from sklearn.model_selection import cross_val_score, train_test_split
 from sklearn.metrics import classification_report
 
@@ -34,9 +35,11 @@ def main():
     X = np.array(X)
     y = np.array(y)
 
-    print("\n[sys] Обучение Random Forest на паттернах матричного шума...")
+    print("\n[sys] Обучение Random Forest (с Platt Калибровкой) на паттернах матричного шума...")
     # Наш второй эксперт (Лес)
-    rf = RandomForestClassifier(n_estimators=100, random_state=42, class_weight='balanced')
+    base_rf = RandomForestClassifier(n_estimators=100, random_state=42, class_weight='balanced')
+    # Оборачиваем лес в калибратор
+    rf = CalibratedClassifierCV(estimator=base_rf, method='sigmoid', cv=5)
     
     scores = cross_val_score(rf, X, y, cv=5, scoring='accuracy')
     print(f"\n📊 Средняя точность кросс-валидации (5-Fold): {np.mean(scores):.2%}")

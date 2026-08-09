@@ -2,11 +2,11 @@ import glob
 import numpy as np
 from src.models.fft_module import SpectralAnalyzer
 from sklearn.ensemble import RandomForestClassifier
+from sklearn.calibration import CalibratedClassifierCV
 from sklearn.model_selection import cross_val_score, train_test_split
 from sklearn.metrics import classification_report
 import os
 import joblib
-
 
 def main():
     print("[sys] Инициализация Spectral Analyzer...")
@@ -36,9 +36,11 @@ def main():
     X = np.array(X)
     y = np.array(y)
 
-    print("\n[sys] Обучение Random Forest на спектральных профилях...")
+    print("\n[sys] Обучение Random Forest (с Platt Калибровкой) на спектральных профилях...")
     # Обучаем быстрый и мощный случайный лес
-    rf = RandomForestClassifier(n_estimators=100, random_state=42, class_weight='balanced')
+    base_rf = RandomForestClassifier(n_estimators=100, random_state=42, class_weight='balanced')
+    # Оборачиваем лес в калибратор (метод 'sigmoid' - это Platt Scaling)
+    rf = CalibratedClassifierCV(estimator=base_rf, method='sigmoid', cv=5)
     
     # Кросс-валидация (5 фолдов)
     scores = cross_val_score(rf, X, y, cv=5, scoring='accuracy')
