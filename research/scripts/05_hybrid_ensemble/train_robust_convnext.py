@@ -10,9 +10,8 @@ from src.models.baseline_cnn import BaselineDetector
 
 def main():
     device = torch.device("mps" if torch.backends.mps.is_available() else "cuda" if torch.cuda.is_available() else "cpu")
-    print(f"[sys] Инициализация РОБАСТНОГО обучения ConvNeXt на: {device}")
+    print(f"[sys] Робастное обучение ConvNeXt на датасете Defactify: {device}")
 
-    # 1. Агрессивная аугментация (Защита от зубрежки)
     train_transform = transforms.Compose([
         transforms.Resize((224, 224)),
         transforms.RandomHorizontalFlip(),
@@ -30,42 +29,29 @@ def main():
         transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
     ])
 
-    train_dir = "data/parveshiiii_ai_vs_real/train"
-    val_dir = "data/parveshiiii_ai_vs_real/val"
+    train_dataset = datasets.ImageFolder("data/defactify/train", transform=train_transform)
+    val_dataset = datasets.ImageFolder("data/defactify/val", transform=val_transform)
 
-    train_dataset = datasets.ImageFolder(train_dir, transform=train_transform)
-    val_dataset = datasets.ImageFolder(val_dir, transform=val_transform)
-
-    batch_size = 64 # Можно взять батч больше, так как замороженная сеть ест меньше памяти
+    batch_size = 64
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=2)
     val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, num_workers=2)
 
     model = BaselineDetector(pretrained=True).to(device)
 
-    # =================================================================
-    # 2. LINEAR PROBING: ЗАМОРОЗКА БЭКБОНА
-    # Замораживаем все слои, чтобы не сломать веса ImageNet
+    # Linear Probing: заморозка всех слоев кроме классификатора
     for param in model.parameters():
         param.requires_grad = False
-
-    # Размораживаем только последний слой-классификатор
-    # (Обычно содержит 'fc', 'classifier' или 'head' в названии)
     for name, param in model.named_parameters():
         if any(keyword in name.lower() for keyword in ['classifier', 'fc', 'head']):
             param.requires_grad = True
-    # =================================================================
 
-    # Передаем в оптимизатор только размороженные параметры
     trainable_params = filter(lambda p: p.requires_grad, model.parameters())
-    
     criterion = nn.BCEWithLogitsLoss()
-    # Ставим learning rate чуть выше (1e-3), так как учим только один слой
     optimizer = optim.AdamW(trainable_params, lr=1e-3, weight_decay=0.1)
     scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', patience=1, factor=0.5)
 
     epochs = 4
     best_val_loss = float('inf')
-    os.makedirs("models", exist_ok=True)
     model_path = "models/baseline_weights.pth"
 
     for epoch in range(epochs):
@@ -77,6 +63,8 @@ def main():
         pbar_train = tqdm(train_loader, desc="Train")
         for images, labels in pbar_train:
             images = images.to(device)
+            # Инвертируем метки, если Real = 1, Fake = 0 в ImageFolder
+            # В ImageFolder 'fake' = 0, 'real' = 1. Делаем Fake = 1, Real = 0
             labels = 1.0 - labels.float() 
             labels = labels.unsqueeze(1).to(device)
 
@@ -121,7 +109,7 @@ def main():
         if val_loss < best_val_loss:
             best_val_loss = val_loss
             torch.save(model.state_dict(), model_path)
-            print(f"🌟 Робастные веса сохранены в {model_path}!")
+            print(f"🌟 Новые веса сохранены в {model_path}!")
 
 if __name__ == "__main__":
     main()

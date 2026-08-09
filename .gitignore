@@ -68,4 +68,5 @@ __pycache__/
 .DS_Store
 .vscode/
 .idea/
-.streamlit/
+.streamlit/models/*.pkl
+models/*.pth
