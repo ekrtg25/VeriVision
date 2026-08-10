@@ -14,6 +14,7 @@ class HybridEnsembleDetector:
                  srm_model_path="models/rf_srm.pkl",
                  meta_model_path="models/meta_classifier.pkl"):
         
+        # Автоматический выбор устройства (поддержка MPS для Mac)
         self.device = torch.device("mps" if torch.backends.mps.is_available() else "cuda" if torch.cuda.is_available() else "cpu")
         
         # 1. Инициализация Визуального эксперта (ConvNeXt-Tiny)
@@ -38,7 +39,8 @@ class HybridEnsembleDetector:
         # 3. Инициализация Мета-модели (Stacking)
         self.meta_model = joblib.load(meta_model_path)
 
-    def predict(self, image_path):
+    # Добавлен параметр threshold со значением по умолчанию 0.5
+    def predict(self, image_path, threshold=0.5):
         # --- Шаг 1: Визуальный анализ (CNN) ---
         img = Image.open(image_path).convert("RGB")
         input_tensor = self.transform(img).unsqueeze(0).to(self.device)
@@ -58,13 +60,11 @@ class HybridEnsembleDetector:
         # --- Шаг 4: Мета-ансамблирование (Stacking) ---
         # Формируем вектор признаков для мета-модели
         X_meta = np.array([[cnn_prob, fft_prob, srm_prob]])
-        
-        # Получаем финальную взвешенную вероятность от логистической регрессии
         final_prob = self.meta_model.predict_proba(X_meta)[0][1]
 
         return {
             'final_score': final_prob,
-            'is_fake': final_prob >= 0.5,
+            'is_fake': final_prob >= threshold, # Используем порог для вердикта
             'cnn_prob': cnn_prob,
             'fft_prob': fft_prob,
             'srm_prob': srm_prob

@@ -61,6 +61,7 @@ data/finetune/fake/
 
 # Исключаем веса моделей (обычно их хранят отдельно, например на Hugging Face/S3)
 models/*.pth
+models/*.pkl
 
 # Кэш Python и временные файлы macOS / IDE
 __pycache__/
