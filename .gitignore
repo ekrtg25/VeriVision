@@ -1,73 +1,31 @@
-# Byte-compiled / optimized / DLL files
+# Python / Byte-compiled / module files
 __pycache__/
 *.py[cod]
 *$py.class
-
-# C extensions
 *.so
 
-# Virtual environment
-venv/
+# Environments
 .venv/
-env/
+venv/
 ENV/
+env/
 
-# Data & Models (ВАЖНО для ML-проектов)
-data/raw/*
-data/processed/*
-!data/raw/.gitkeep
-!data/processed/.gitkeep
-*.pt
-*.pth
-*.onnx
-*.bin
-*.h5
-*.ckpt
-*.safetensors
-*.bin
-
-# MLflow & W&B outputs
-mlruns/
-wandb/
-.wandb/
-
-# Jupyter Notebook checkpoints
-.ipynb_checkpoints/
-*-checkpoint.ipynb
-
-# Environment variables & secrets (API keys)
-.env
-.env.local
-
-# IDEs & Editors
+# IDE & OS
+.DS_Store
 .vscode/
 .idea/
-*.swp
-*.swo
 
-# macOS Specific
-.DS_Store
-.AppleDouble
-.LSOverride
-._*
-temp_upload.jpg
-temp_cam.jpg
+# Jupyter Notebook Checkpoints
+.ipynb_checkpoints
 
-# Исключаем локальные датасеты для обучения и файн-тюнинга
-data/
-data/finetune/
-data/finetune/real/
-data/finetune/fake/
-
-# Исключаем веса моделей (обычно их хранят отдельно, например на Hugging Face/S3)
-models/*.pth
+# Model artifacts & weights (DO NOT COMMIT LARGE BINARIES)
 models/*.pkl
-
-# Кэш Python и временные файлы macOS / IDE
-__pycache__/
-*.pyc
-.DS_Store
-.vscode/
-.idea/
-.streamlit/models/*.pkl
 models/*.pth
+models/*.pt
+models/*.onnx
+!models/.gitkeep
+
+# Local & Experimental Data
+data/
+experiments/results/*.png
+.env

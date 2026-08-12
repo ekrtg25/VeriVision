@@ -25,7 +25,7 @@ dataset.features (ClassLabel), а не угадыванием — если у д
 все изображения одним классом (как было в первой версии скрипта).
 
 Запуск:
-    python src/data/download_parveshiiii_dataset.py
+    python scripts/download_ai_vs_real.py
 """
 
 import shutil
