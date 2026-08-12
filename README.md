@@ -11,7 +11,7 @@
   Запись экрана 5-10 сек: загружаете фото → показывается вердикт + разбивка по трём экспертам.
   Сохранить как docs/media/demo.gif и раскомментировать строку ниже.
 -->
-!-- ![VeriVision demo](docs/media/demo.gif) --
+![VeriVision demo](docs/media/demo.gif)
 
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue)]()
 [![PyTorch](https://img.shields.io/badge/PyTorch-ConvNeXt--Tiny-ee4c2c)]()
@@ -57,7 +57,7 @@ VeriVision — попытка решить обе проблемы одновр�
 
 | Фейк уверенно пойман | Реальное фото | Гейтинг спасает от false positive |
 |---|---|---|
-| <!-- ![](docs/media/screenshot_fake.png) --> | <!-- ![](docs/media/screenshot_real.png) --> | <!-- ![](docs/media/screenshot_gating.png) --> |
+| ![](docs/media/screenshot_fake.png)  | ![](docs/media/screenshot_real.png) | ![](docs/media/screenshot_gating.png)|
 
 Живое демо: `streamlit run app.py` — см. [Установка и запуск](#установка-и-запуск).
 
