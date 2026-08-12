@@ -51,7 +51,7 @@ VeriVision — попытка решить обе проблемы одновр�
 -->
 
 **Фейк уверенно пойман**
-![](docs/media/screenshot_fake.png)
+![](/Users/CUkel/Documents/GitHub/VeriVision/docs/media/screenshot_fake.png)
 
 **Реальное фото**
 ![](docs/media/screenshot_real.png)
