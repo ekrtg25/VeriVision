@@ -55,9 +55,14 @@ VeriVision — попытка решить обе проблемы одновр�
   Сохранить в docs/media/screenshot_fake.png, screenshot_real.png, screenshot_gating.png
 -->
 
-| Фейк уверенно пойман | Реальное фото | Гейтинг спасает от false positive |
-|---|---|---|
-| ![](docs/media/screenshot_fake.png)  | ![](docs/media/screenshot_real.png) | ![](docs/media/screenshot_gating.png)|
+**Фейк уверенно пойман**
+![](docs/media/screenshot_fake.png)
+
+**Реальное фото**
+![](docs/media/screenshot_real.png)
+
+**Гейтинг спасает от false positive**
+![](docs/media/screenshot_gating.png)
 
 Живое демо: `streamlit run app.py` — см. [Установка и запуск](#установка-и-запуск).
 
