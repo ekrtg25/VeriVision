@@ -13,11 +13,6 @@
 -->
 ![VeriVision demo](docs/media/demo.gif)
 
-[![Python](https://img.shields.io/badge/python-3.10%2B-blue)]()
-[![PyTorch](https://img.shields.io/badge/PyTorch-ConvNeXt--Tiny-ee4c2c)]()
-[![Streamlit](https://img.shields.io/badge/UI-Streamlit-ff4b4b)]()
-[![License](https://img.shields.io/badge/license-MIT-green)]()
-
 </div>
 
 ---
