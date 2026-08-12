@@ -11,7 +11,7 @@
   Запись экрана 5-10 сек: загружаете фото → показывается вердикт + разбивка по трём экспертам.
   Сохранить как docs/media/demo.gif и раскомментировать строку ниже.
 -->
-<!-- ![VeriVision demo](docs/media/demo.gif) -->
+!-- ![VeriVision demo](docs/media/demo.gif) --
 
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue)]()
 [![PyTorch](https://img.shields.io/badge/PyTorch-ConvNeXt--Tiny-ee4c2c)]()
