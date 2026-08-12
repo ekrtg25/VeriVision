@@ -15,7 +15,7 @@
   Запись экрана 5-10 сек: загружаете фото → показывается вердикт + разбивка по трём экспертам.
   Сохранить как docs/media/demo.gif и раскомментировать строку ниже.
 -->
-https://github.com/user-attachments/assets/c26b4d61-0acc-4473-9ede-de738034d2ea
+<video src="https://github.com/user-attachments/assets/c26b4d61-0acc-4473-9ede-de738034d2ea" autoplay loop muted playsinline width="100%"></video>
 
 </div>
 
