@@ -227,6 +227,5 @@ VeriVision/
 
 <div align="center">
 
-Автор: [ваше имя] · [ссылка на LinkedIn/почту]
 
 </div>
