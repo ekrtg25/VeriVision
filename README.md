@@ -11,7 +11,9 @@
   Запись экрана 5-10 сек: загружаете фото → показывается вердикт + разбивка по трём экспертам.
   Сохранить как docs/media/demo.gif и раскомментировать строку ниже.
 -->
-<img src="docs/media/demo.gif" alt="VeriVision demo" width="100%" />
+<video autoplay loop muted playsinline width="100%">
+  <source src="docs/media/veri_vision_git.mp4" type="video/mp4">
+</video>
 
 </div>
 
