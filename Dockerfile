@@ -21,14 +21,18 @@ COPY requirements.txt .
 
 RUN pip install --no-cache-dir --upgrade pip
 
-# Ставим torch отдельно как CPU-only сборку (без этого pip по умолчанию
-# может подтянуть CUDA-версию весом 2-3+ ГБ, которая тут не нужна и
-# сильно раздувает образ и время сборки)
-RUN pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu
+# Ставим torch и torchvision ВМЕСТЕ, одной командой, из одного индекса —
+# это критично: torchvision жёстко привязан к конкретной версии torch,
+# и если ставить их порознь/с разными пинами версий, получаем ошибки
+# импорта вида "torch.library has no attribute register_fake".
+# Также это CPU-only сборка (без этого pip по умолчанию может подтянуть
+# CUDA-версию весом 2-3+ ГБ, которая тут не нужна).
+RUN pip install --no-cache-dir torch torchvision --index-url https://download.pytorch.org/whl/cpu
 
 # Остальные зависимости из requirements.txt
-# (убедись, что там НЕТ строки "torch" без индекса — иначе pip может
-# переустановить его в GPU-версии поверх уже поставленной CPU-версии)
+# (убедись, что там НЕТ строк "torch"/"torchvision" без индекса — иначе
+# pip может переустановить их в несовместимой/GPU-версии поверх уже
+# поставленной согласованной CPU-пары выше)
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Копируем весь проект (server.py, index.html, статика, веса моделей)
