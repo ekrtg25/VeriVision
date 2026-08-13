@@ -4,7 +4,7 @@ from src.models.fft_module import FFTAnalyzer
 
 def main():
     print("[sys] Инициализация FFT анализатора...")
-    fft = FFTAnalyzer(low_freq_radius=80) # Радиус среза можно тюнить
+    fft = FFTAnalyzer(low_freq_radius=80) 
 
     real_paths = glob.glob("data/ood/midjourney_v6/real/*.*")[:15]
     fake_paths = glob.glob("data/ood/midjourney_v6/fake/*.*")[:15]

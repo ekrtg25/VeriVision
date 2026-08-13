@@ -63,8 +63,6 @@ def main():
         pbar_train = tqdm(train_loader, desc="Train")
         for images, labels in pbar_train:
             images = images.to(device)
-            # Инвертируем метки, если Real = 1, Fake = 0 в ImageFolder
-            # В ImageFolder 'fake' = 0, 'real' = 1. Делаем Fake = 1, Real = 0
             labels = 1.0 - labels.float() 
             labels = labels.unsqueeze(1).to(device)
 

@@ -9,7 +9,6 @@ from tqdm import tqdm
 from src.models.baseline_cnn import BaselineDetector
 
 def main():
-    # 1. Настройка устройства (задействуем GPU на Mac)
     device = torch.device("mps" if torch.backends.mps.is_available() else "cuda" if torch.cuda.is_available() else "cpu")
     print(f"[sys] Инициализация обучения ConvNeXt на устройстве: {device}")
 
@@ -36,8 +35,6 @@ def main():
     train_dataset = datasets.ImageFolder(train_dir, transform=train_transform)
     val_dataset = datasets.ImageFolder(val_dir, transform=val_transform)
 
-    # ImageFolder по умолчанию сортирует папки по алфавиту: 'fake' = 0, 'real' = 1.
-    # Нам нужно наоборот: Real = 0, Fake = 1. Мы инвертируем метки в цикле обучения.
     print(f"[sys] Найдено классов: {train_dataset.class_to_idx}")
     
     batch_size = 32
@@ -71,7 +68,6 @@ def main():
         pbar_train = tqdm(train_loader, desc="Train")
         for images, labels in pbar_train:
             images = images.to(device)
-            # Инвертируем метки: если fake=0, real=1 -> делаем fake=1, real=0
             labels = 1.0 - labels.float() 
             labels = labels.unsqueeze(1).to(device)
 

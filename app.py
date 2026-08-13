@@ -17,7 +17,6 @@ def load_engine():
 
 engine = load_engine()
 
-# --- НОВАЯ ФУНКЦИЯ: OOD-детектор (Анализатор качества фото) ---
 def check_image_conditions(image_path):
     img = cv2.imread(image_path)
     if img is None:
@@ -33,7 +32,6 @@ def check_image_conditions(image_path):
     warnings = []
 
     # 1. Детектор настоящих бликов
-    # Подняли порог до 240 (почти чистый белый)
     overexposed_pixels = np.sum(gray > 240)
     total_pixels = gray.shape[0] * gray.shape[1]
     overexposed_ratio = overexposed_pixels / total_pixels
@@ -47,7 +45,6 @@ def check_image_conditions(image_path):
         warnings.append("☀️ **Сложный свет:** Обнаружены жесткие блики или пересвет (вероятно, окно/вспышка). Алгоритмы камеры могли исказить пиксели.")
 
     # 2. Детектор сильного размытия
-    # Опустили порог до 75. Теперь среагирует только на явный смаз или расфокус
     laplacian_var = cv2.Laplacian(gray, cv2.CV_64F).var()
     
     if laplacian_var < 75: 

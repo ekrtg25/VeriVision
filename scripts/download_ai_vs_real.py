@@ -1,32 +1,4 @@
-"""
-Скачивает датасет Parveshiiii/AI-vs-Real с Hugging Face и раскладывает его
-в data/parveshiiii_ai_vs_real/{train,val}/{real,fake}/ — по аналогии с
-существующим src/data/download_hf_dataset.py, но под отдельную папку,
-чтобы не перезаписать другой уже скачанный датасет в data/raw/.
 
-Два момента, которые пришлось обойти на практике (не по документации HF):
-
-1. У репозитория датасета метаданные (dataset_infos.json) не совпадают
-   с реальными parquet-файлами (ожидается 9999 строк, а по факту записано
-   13999) — это баг самого датасета на HF, а не наш. datasets по умолчанию
-   ругается на это NonMatchingSplitsSizesError. Обходим через
-   verification_mode="no_checks".
-
-2. Несмотря на то, что на странице датасета нарисована структура
-   train/test, по факту через load_dataset() отдаётся только ОДИН сплит
-   "train" (все 13999 примеров). Поэтому train/val режем сами —
-   случайным перемешиванием с фиксированным seed (датасет заявлен как
-   сбалансированный, поэтому простой shuffle+slice достаточен).
-
-Метки: колонка и мэппинг классов определяются автоматически из
-dataset.features (ClassLabel), а не угадыванием — если у датасета
-окажется нестандартное имя колонки, скрипт упадёт с понятной ошибкой
-и покажет реальные имена колонок, вместо того чтобы молча промаркировать
-все изображения одним классом (как было в первой версии скрипта).
-
-Запуск:
-    python scripts/download_ai_vs_real.py
-"""
 
 import shutil
 from pathlib import Path
@@ -128,8 +100,6 @@ def download_and_distribute():
             (OUTPUT_DIR / local_split / cls).mkdir(parents=True, exist_ok=True)
 
     print(f"📦 Скачиваем {DATASET_NAME} (появится стандартный прогресс-бар Hugging Face)...")
-    # verification_mode="no_checks" — обход известного расхождения метаданных
-    # датасета с реальными данными (см. докстринг выше).
     ds_dict = load_dataset(DATASET_NAME, verification_mode="no_checks")
 
     available_splits = list(ds_dict.keys())

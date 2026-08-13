@@ -11,7 +11,6 @@ from albumentations.pytorch import ToTensorV2
 
 from src.models.baseline_cnn import BaselineDetector
 
-# Исправленные аугментации под актуальные версии Albumentations
 train_transform = A.Compose([
     A.Resize(224, 224),
     A.HorizontalFlip(p=0.5),

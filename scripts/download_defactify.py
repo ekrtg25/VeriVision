@@ -20,7 +20,6 @@ def save_split(dataset_split, split_name, base_dir="data/defactify"):
 
 def main():
     print("[sys] Загрузка Defactify_Image_Dataset с Hugging Face...")
-    # Загружаем датасет целиком (потребует места на диске)
     ds = load_dataset("Rajarshi-Roy-research/Defactify_Image_Dataset")
     
     # Сохраняем Train и Validation

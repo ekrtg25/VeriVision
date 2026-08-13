@@ -11,10 +11,6 @@ class BaselineDetector(nn.Module):
         # Получаем количество признаков перед финальным слоем
         num_ftrs = self.model.classifier[2].in_features
         
-        # ==========================================
-        # ANTI-ARTIFACT HEAD
-        # Добавляем Dropout (0.4) для предотвращения зубрежки
-        # ==========================================
         self.model.classifier = nn.Sequential(
             self.model.classifier[0],  # Сохраняем оригинальный LayerNorm2d
             self.model.classifier[1],  # Сохраняем Flatten

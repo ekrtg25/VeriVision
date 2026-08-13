@@ -36,7 +36,6 @@ class HybridEnsembleDetector:
 
         self.meta_model = joblib.load(meta_model_path)
 
-    # --- НОВЫЙ БЛОК: Механизм Динамического Гейтинга ---
     def _compute_gating_weights(self, image_path):
         """Оценивает изображение и возвращает веса доверия для [CNN, FFT, SRM]"""
         img = cv2.imread(image_path)

@@ -56,10 +56,7 @@ def main():
     midjourney_dir = os.path.join(base_ood, "midjourney_v6")
     create_dirs(midjourney_dir)
     
-    # 1. Железобетонный парсинг реальных фото
     fetch_real_unsplash_images(os.path.join(midjourney_dir, "real"), 100)
-    
-    # 2. Загрузка Parquet-датасета Midjourney v6
     fetch_mj6_images(os.path.join(midjourney_dir, "fake"), 100)
 
     print("\n✅ OOD Datasets successfully generated!")

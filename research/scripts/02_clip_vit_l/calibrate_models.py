@@ -26,7 +26,7 @@ class ValidationDataset(Dataset):
         self.image_paths = []
         self.labels = []
         
-        # Укажи тут пути до твоей ВАЛИДАЦИОННОЙ (тестовой) выборки
+        # Укажи тут пути до ВАЛИДАЦИОННОЙ (тестовой) выборки
         real_files = glob.glob("data/raw/val/real/*.*") 
         fake_files = glob.glob("data/raw/val/fake/*.*")
 

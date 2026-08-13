@@ -4,7 +4,6 @@ import numpy as np
 from sklearn.metrics import f1_score, precision_score, recall_score, accuracy_score, roc_curve
 from tqdm import tqdm
 
-# Подключаем нашу новую "Троицу"
 from src.serving.ensemble import HybridEnsembleDetector
 
 def evaluate_dataset(engine, dataset_name, base_path, threshold=0.49):

@@ -41,8 +41,6 @@ class HFDatasetAdapter(Dataset):
             augmented = self.transform(image=image_np)
             image = augmented['image']
 
-        # В CIFAKE метка: 0 - Real (или наоборот, проверим по датасету), приведем к float
-        # Обычно в CIFAKE: 0 или 'REAL', 1 или 'FAKE'. Безопаснее мапить через int.
         label = float(item['label'])
         return image, torch.tensor(label, dtype=torch.float32)
 

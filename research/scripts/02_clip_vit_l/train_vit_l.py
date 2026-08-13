@@ -8,7 +8,6 @@ import clip
 from tqdm import tqdm
 import os
 
-# Автоматический выбор устройства (MPS для Mac)
 device = torch.device("mps" if torch.backends.mps.is_available() else "cuda" if torch.cuda.is_available() else "cpu")
 
 class TrainDataset(Dataset):
@@ -17,7 +16,6 @@ class TrainDataset(Dataset):
         self.labels = []
         self.preprocess = preprocess
         
-        # Пути к тренировочным данным (замени, если у тебя другая структура)
         real_files = glob.glob(f"{root_dir}/real/*.*")
         fake_files = glob.glob(f"{root_dir}/fake/*.*")
         
@@ -51,7 +49,6 @@ def main():
     probe = nn.Linear(768, 1).to(device)
     
     print("[sys] Preparing DataLoaders...")
-    # Укажи путь к основной обучающей выборке (не OOD!)
     train_dataset = TrainDataset("data/raw/train", preprocess)
     
     if len(train_dataset) == 0:
