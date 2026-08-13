@@ -98,10 +98,10 @@ class HybridEnsembleDetector:
         final_prob = self.meta_model.predict_proba(X_meta)[0][1]
 
         return {
-            'final_score': final_prob,
-            'is_fake': final_prob >= threshold,
-            'cnn_prob': cnn_prob, # Отдаем в UI чистые вероятности, чтобы юзер видел изначальную панику моделей
-            'fft_prob': fft_prob,
-            'srm_prob': srm_prob,
-            'gating_active': w_cnn < 1.0 # Флаг для UI, что вмешался гейтинг
+            'final_score': float(final_prob),
+            'is_fake': bool(final_prob >= threshold),
+            'cnn_prob': float(cnn_prob),
+            'fft_prob': float(fft_prob),
+            'srm_prob': float(srm_prob),
+            'gating_active': bool(w_cnn < 1.0)
         }

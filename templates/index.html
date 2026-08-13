@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VeriVision // AI Detection Platform</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            500: '#6366f1',
+                            600: '#4f46e5',
+                            900: '#1e1b4b',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen font-sans antialiased selection:bg-indigo-500 selection:text-white"
+      x-data="verivisionApp()">
+
+    <!-- Header Navigation -->
+    <header class="border-b border-slate-800/80 bg-slate-950/80 backdrop-blur sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center font-bold text-white shadow-lg shadow-indigo-500/30">
+                    👁️
+                </div>
+                <span class="font-bold text-lg tracking-wider bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent">
+                    VeriVision
+                </span>
+                <span class="text-xs px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 font-mono">
+                    MoE v2.0
+                </span>
+            </div>
+            <div class="flex items-center gap-4 text-sm text-slate-400">
+                <span class="flex items-center gap-2">
+                    <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                    System Operational
+                </span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Bento Grid Layout -->
+    <main class="max-w-7xl mx-auto px-6 py-8">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+
+            <!-- Bento Card 1: File Upload (Col Span 1) -->
+            <div class="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-6 backdrop-blur flex flex-col justify-between hover:border-slate-700 transition">
+                <div>
+                    <div class="flex items-center justify-between mb-4">
+                        <h2 class="font-semibold text-slate-200 flex items-center gap-2">
+                            <i class="fa-solid fa-cloud-arrow-up text-indigo-400"></i> Target Media
+                        </h2>
+                        <span class="text-xs text-slate-500">JPG, PNG</span>
+                    </div>
+
+                    <!-- Dropzone -->
+                    <label class="border-2 border-dashed border-slate-700 hover:border-indigo-500/80 rounded-xl p-6 flex flex-col items-center justify-center cursor-pointer transition bg-slate-950/40 min-h-[220px] relative overflow-hidden group">
+                        <template x-if="!imagePreview">
+                            <div class="text-center">
+                                <i class="fa-solid fa-image text-3xl text-slate-600 group-hover:text-indigo-400 transition mb-2"></i>
+                                <p class="text-sm font-medium text-slate-300">Click to upload or drag & drop</p>
+                                <p class="text-xs text-slate-500 mt-1">High resolution supported</p>
+                            </div>
+                        </template>
+                        <template x-if="imagePreview">
+                            <img :src="imagePreview" class="absolute inset-0 w-full h-full object-cover rounded-lg">
+                        </template>
+                        <input type="file" @change="handleFileUpload" class="hidden" accept="image/png, image/jpeg">
+                    </label>
+                </div>
+
+                <!-- Controls -->
+                <div class="mt-6 space-y-4">
+                    <div>
+                        <div class="flex justify-between text-xs text-slate-400 mb-1">
+                            <span>Sensitivity Threshold</span>
+                            <span x-text="threshold"></span>
+                        </div>
+                        <input type="range" min="0.1" max="0.9" step="0.01" x-model="threshold" class="w-full accent-indigo-500 bg-slate-800 rounded-lg cursor-pointer">
+                    </div>
+
+                    <button @click="analyzeImage()" 
+                            :disabled="!selectedFile || loading"
+                            class="w-full py-3 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-800 disabled:text-slate-600 font-medium text-sm transition shadow-lg shadow-indigo-600/20 flex items-center justify-center gap-2">
+                        <template x-if="loading">
+                            <i class="fa-solid fa-spinner animate-spin"></i>
+                        </template>
+                        <span x-text="loading ? 'Analyzing Artifacts...' : 'Run Forensic Scan'"></span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Bento Card 2: Main Verdict & Gating Status (Col Span 2) -->
+            <div class="md:col-span-2 bg-slate-900/60 border border-slate-800/80 rounded-2xl p-6 backdrop-blur flex flex-col justify-between">
+                <div>
+                    <div class="flex items-center justify-between mb-4">
+                        <h2 class="font-semibold text-slate-200 flex items-center gap-2">
+                            <i class="fa-solid fa-shield-halved text-indigo-400"></i> Ensemble Verdict
+                        </h2>
+                        <span class="text-xs font-mono text-slate-500">Stacking Meta-Model</span>
+                    </div>
+
+                    <!-- Gating Alert Banner -->
+                    <template x-if="result && result.gating_active">
+                        <div class="mb-4 p-4 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-300 text-sm flex items-start gap-3">
+                            <i class="fa-solid fa-triangle-exclamation text-amber-400 mt-0.5"></i>
+                            <div>
+                                <p class="font-semibold">Difficult Shooting Conditions Detected</p>
+                                <p class="text-xs text-amber-400/80 mt-0.5">OpenCV Gating active: Harsh lighting or motion blur detected. ConvNeXt & SRM weights adjusted to prevent False Positives.</p>
+                            </div>
+                        </div>
+                    </template>
+
+                    <!-- Verdict Card Area -->
+                    <div class="bg-slate-950/60 rounded-xl p-8 border border-slate-800/50 text-center flex flex-col items-center justify-center min-h-[180px]">
+                        <template x-if="!result && !loading">
+                            <p class="text-slate-500 text-sm">Upload an image and run scan to display verdict</p>
+                        </template>
+
+                        <template x-if="result">
+                            <div class="space-y-3">
+                                <div class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-sm font-semibold tracking-wide"
+                                     :class="result.is_fake ? 'bg-rose-500/10 text-rose-400 border border-rose-500/30' : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30'">
+                                    <i :class="result.is_fake ? 'fa-solid fa-robot' : 'fa-solid fa-camera'"></i>
+                                    <span x-text="result.is_fake ? 'AI-Generated Image' : 'Real Image'"></span>
+                                </div>
+                                <div class="text-4xl font-extrabold tracking-tight text-white">
+                                    <span x-text="result.is_fake ? (result.final_score * 100).toFixed(1) + '%' : ((1 - result.final_score) * 100).toFixed(1) + '%'"></span>
+                                    <span class="text-xs font-normal text-slate-400 block mt-1" x-text="result.is_fake ? 'Synthetic Probability Score' : 'Authentic Confidence Score'"></span>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+
+                <!-- Probability Bar -->
+                <div class="mt-6" x-if="result">
+                    <div class="flex justify-between text-xs text-slate-400 mb-2">
+                        <span>Real</span>
+                        <span>AI-Generated</span>
+                    </div>
+                    <div class="w-full h-3 bg-slate-800 rounded-full overflow-hidden flex">
+                        <div class="h-full bg-emerald-500 transition-all duration-500" :style="`width: ${100 - (result ? result.final_score * 100 : 50)}%`"></div>
+                        <div class="h-full bg-rose-500 transition-all duration-500" :style="`width: ${result ? result.final_score * 100 : 50}%`"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bento Card 3: Visual Expert (ConvNeXt) -->
+            <div class="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-5 backdrop-blur hover:border-slate-700 transition">
+                <div class="flex items-center justify-between mb-3">
+                    <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Visual Expert</span>
+                    <i class="fa-solid fa-brain text-indigo-400 text-sm"></i>
+                </div>
+                <div class="text-sm font-medium text-slate-200">ConvNeXt-Tiny</div>
+                <p class="text-xs text-slate-500 mt-1 mb-4">Semantic artifacts & texture anomalies</p>
+                <div class="flex items-baseline justify-between">
+                    <span class="text-2xl font-bold text-white" x-text="result ? (result.cnn_prob * 100).toFixed(1) + '%' : '--'"></span>
+                    <span class="text-xs font-mono px-2 py-0.5 rounded"
+                          :class="result && result.cnn_prob >= 0.5 ? 'bg-rose-500/10 text-rose-400' : 'bg-slate-800 text-slate-400'"
+                          x-text="result ? (result.cnn_prob >= 0.5 ? 'FAKE' : 'REAL') : 'IDLE'"></span>
+                </div>
+            </div>
+
+            <!-- Bento Card 4: Spectral Expert (FFT) -->
+            <div class="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-5 backdrop-blur hover:border-slate-700 transition">
+                <div class="flex items-center justify-between mb-3">
+                    <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Spectral Expert</span>
+                    <i class="fa-solid fa-wave-square text-indigo-400 text-sm"></i>
+                </div>
+                <div class="text-sm font-medium text-slate-200">1D FFT Radial Profile</div>
+                <p class="text-xs text-slate-500 mt-1 mb-4">Upsampling & grid frequency patterns</p>
+                <div class="flex items-baseline justify-between">
+                    <span class="text-2xl font-bold text-white" x-text="result ? (result.fft_prob * 100).toFixed(1) + '%' : '--'"></span>
+                    <span class="text-xs font-mono px-2 py-0.5 rounded"
+                          :class="result && result.fft_prob >= 0.5 ? 'bg-rose-500/10 text-rose-400' : 'bg-slate-800 text-slate-400'"
+                          x-text="result ? (result.fft_prob >= 0.5 ? 'FAKE' : 'REAL') : 'IDLE'"></span>
+                </div>
+            </div>
+
+            <!-- Bento Card 5: Noise Expert (SRM) -->
+            <div class="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-5 backdrop-blur hover:border-slate-700 transition">
+                <div class="flex items-center justify-between mb-3">
+                    <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Noise Expert</span>
+                    <i class="fa-solid fa-microscope text-indigo-400 text-sm"></i>
+                </div>
+                <div class="text-sm font-medium text-slate-200">SRM Filter Residuals</div>
+                <p class="text-xs text-slate-500 mt-1 mb-4">Matrix noise statistics (Variance/Skew)</p>
+                <div class="flex items-baseline justify-between">
+                    <span class="text-2xl font-bold text-white" x-text="result ? (result.srm_prob * 100).toFixed(1) + '%' : '--'"></span>
+                    <span class="text-xs font-mono px-2 py-0.5 rounded"
+                          :class="result && result.srm_prob >= 0.5 ? 'bg-rose-500/10 text-rose-400' : 'bg-slate-800 text-slate-400'"
+                          x-text="result ? (result.srm_prob >= 0.5 ? 'FAKE' : 'REAL') : 'IDLE'"></span>
+                </div>
+            </div>
+            
+            <!-- Bento Card 6: Grad-CAM Visualization (Col Span 1) -->
+            <div class="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-5 backdrop-blur hover:border-slate-700 transition flex flex-col">
+                <div class="flex items-center justify-between mb-3">
+                    <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Activation Map</span>
+                    <i class="fa-solid fa-fire text-indigo-400 text-sm"></i>
+                </div>
+                <div class="text-sm font-medium text-slate-200">Grad-CAM (ConvNeXt)</div>
+                <p class="text-xs text-slate-500 mt-1 mb-4">Highlights pixel regions that most strongly influenced the visual expert's decision (red = high impact).</p>
+                <div class="flex-grow flex items-center justify-center bg-slate-950/60 rounded-xl border border-slate-800/50 overflow-hidden min-h-[160px] relative">
+                    <template x-if="!result || !result.gradcam_b64">
+                        <i class="fa-solid fa-image text-3xl text-slate-700"></i>
+                    </template>
+                    <template x-if="result && result.gradcam_b64">
+                        <img :src="result.gradcam_b64" class="absolute inset-0 w-full h-full object-cover">
+                    </template>
+                </div>
+            </div>
+
+            <!-- Bento Card 7: Terminal Logs (Col Span 2) -->
+            <div class="md:col-span-2 bg-slate-950 border border-slate-800/80 rounded-2xl p-5 backdrop-blur font-mono text-sm overflow-hidden flex flex-col">
+                <div class="flex items-center justify-between mb-4 border-b border-slate-800 pb-3">
+                    <div class="flex gap-2">
+                        <div class="w-3 h-3 rounded-full bg-rose-500/80"></div>
+                        <div class="w-3 h-3 rounded-full bg-amber-500/80"></div>
+                        <div class="w-3 h-3 rounded-full bg-emerald-500/80"></div>
+                    </div>
+                    <span class="text-xs text-slate-500">system_analysis.log</span>
+                </div>
+                <div class="flex-grow overflow-y-auto space-y-1.5 text-slate-400 h-40" id="terminal-container">
+                    <template x-for="log in logs">
+                        <div class="leading-relaxed">
+                            <span class="text-indigo-500 mr-2">></span>
+                            <span x-text="log"></span>
+                        </div>
+                    </template>
+                    <template x-if="loading">
+                        <div class="animate-pulse text-indigo-500">_</div>
+                    </template>
+                </div>
+            </div>
+
+            <!-- Bento Card 8: System Architecture Explanation (Col Span 3) -->
+            <div class="md:col-span-3 bg-slate-900/60 border border-slate-800/80 rounded-2xl p-6 backdrop-blur hover:border-slate-700 transition">
+                <h2 class="font-semibold text-slate-200 flex items-center gap-2 mb-4">
+                    <i class="fa-solid fa-network-wired text-indigo-400"></i> How VeriVision Works
+                </h2>
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-6 text-sm text-slate-400">
+                    <div>
+                        <p class="font-medium text-slate-300 mb-1"><i class="fa-solid fa-brain text-indigo-500 mr-2"></i> Visual (ConvNeXt)</p>
+                        <p class="text-xs">Analyzes raw pixels to detect semantic inconsistencies, unnatural blending, and AI-generated texture artifacts using a deep convolutional network.</p>
+                    </div>
+                    <div>
+                        <p class="font-medium text-slate-300 mb-1"><i class="fa-solid fa-wave-square text-indigo-500 mr-2"></i> Spectral (FFT)</p>
+                        <p class="text-xs">Transforms the image into a 1D frequency profile to spot invisible grid patterns left behind by AI upsampling and diffusion processes.</p>
+                    </div>
+                    <div>
+                        <p class="font-medium text-slate-300 mb-1"><i class="fa-solid fa-microscope text-indigo-500 mr-2"></i> Noise (SRM)</p>
+                        <p class="text-xs">Strips away image content using high-pass filters to evaluate underlying matrix noise, looking for synthetic digital signatures.</p>
+                    </div>
+                    <div>
+                        <p class="font-medium text-slate-300 mb-1"><i class="fa-solid fa-scale-balanced text-indigo-500 mr-2"></i> Meta-Model</p>
+                        <p class="text-xs">A logistic regression algorithm acts as the judge, intelligently weighing the three experts' opinions based on dynamic OpenCV lighting/blur gating.</p>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <!-- Alpine.js Application Logic -->
+    <script>
+        function verivisionApp() {
+            return {
+                selectedFile: null,
+                imagePreview: null,
+                threshold: 0.50,
+                loading: false,
+                result: null,
+                logs: [],
+
+                handleFileUpload(event) {
+                    const file = event.target.files[0];
+                    if (file) {
+                        this.selectedFile = file;
+                        this.imagePreview = URL.createObjectURL(file);
+                        this.result = null;
+                        this.logs = ["[sys] Image loaded into memory. Ready for scan."];
+                    }
+                },
+
+                async analyzeImage() {
+                    if (!this.selectedFile) return;
+
+                    this.loading = true;
+                    this.result = null;
+                    this.logs = [];
+                    
+                    this.logs.push(`[sys] Initializing Hybrid Ensemble Detector (Threshold: ${this.threshold})...`);
+                    setTimeout(() => this.logs.push("[cv2] Calculating OpenCV gating penalties..."), 400);
+                    setTimeout(() => this.logs.push("[model] Running ConvNeXt-Tiny Architecture..."), 800);
+                    setTimeout(() => this.logs.push("[model] Extracting FFT Spectral Profile..."), 1200);
+                    setTimeout(() => this.logs.push("[model] Applying SRM Filters..."), 1600);
+
+                    const formData = new FormData();
+                    formData.append('file', this.selectedFile);
+                    formData.append('threshold', this.threshold);
+
+                    try {
+                        const response = await fetch('/api/analyze', {
+                            method: 'POST',
+                            body: formData
+                        });
+
+                        if (!response.ok) throw new Error('Analysis failed');
+                        
+                        this.result = await response.json();
+                        
+                        this.logs.push("[xai] Generating Grad-CAM activation map...");
+                        this.logs.push("[ensemble] Computing Logistic Regression Stacking...");
+                        
+                        if(this.result.gating_active) {
+                            this.logs.push("[warn] Gating applied: Confidence weights dynamically penalized.");
+                        }
+
+                        this.logs.push(`[sys] Analysis complete. Final Score: ${(this.result.final_score).toFixed(4)}`);
+
+                    } catch (error) {
+                        this.logs.push("[error] " + error.message);
+                    } finally {
+                        this.loading = false;
+                    }
+                }
+            }
+        }
+    </script>
+</body>
+</html>
