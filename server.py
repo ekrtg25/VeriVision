@@ -2,17 +2,20 @@ import base64
 import io
 import os
 import shutil
+import uuid
 from pathlib import Path
 
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.responses import HTMLResponse
+from fastapi.staticfiles import StaticFiles
 
 from src.serving.ensemble import HybridEnsembleDetector
 from src.serving.gradcam import ResNetGradCAM
 
 app = FastAPI(title="VeriVision API", version="2.0.0")
 
-# Инициализация детектора при старте
+# Инициализация детектора при старте (модели грузятся один раз в память
+# процесса, а не при каждом запросе)
 detector = HybridEnsembleDetector(
     cnn_weights_path="models/baseline_weights.pth",
     fft_model_path="models/rf_spectral.pkl",
@@ -23,6 +26,21 @@ detector = HybridEnsembleDetector(
 TEMP_DIR = Path("temp_uploads")
 TEMP_DIR.mkdir(exist_ok=True)
 
+# Раздаём CSS/JS/картинки, на которые ссылается index.html, по префиксу /static.
+# ВАЖНО: путь "static" ниже — предположение по типовой структуре проекта.
+# Если у тебя папка со стилями/скриптами называется иначе (assets, css и т.д.)
+# или лежит в другом месте — поменяй "static" на свой путь и в этой строке,
+# и в index.html (все ссылки вида /static/... должны совпадать).
+if Path("static").exists():
+    app.mount("/static", StaticFiles(directory="static"), name="static")
+
+
+@app.get("/health")
+async def health_check():
+    # Простой эндпоинт, чтобы можно было быстро проверить,
+    # что контейнер поднялся и модели загружены, не гоняя картинку через /api/analyze
+    return {"status": "ok"}
+
 
 @app.post("/api/analyze")
 async def analyze_image(
@@ -32,7 +50,11 @@ async def analyze_image(
     if not file.content_type or not file.content_type.startswith("image/"):
         raise HTTPException(status_code=400, detail="Uploaded file must be an image.")
 
-    temp_file_path = TEMP_DIR / file.filename
+    # Уникальное имя, чтобы параллельные запросы не затирали файлы друг друга
+    # (Cloud Run у тебя настроен на до 80 конкурентных запросов на инстанс)
+    suffix = Path(file.filename or "upload").suffix or ".jpg"
+    temp_file_path = TEMP_DIR / f"{uuid.uuid4().hex}{suffix}"
+
     try:
         # Сохраняем файл для инференса
         with open(temp_file_path, "wb") as buffer:
@@ -40,12 +62,12 @@ async def analyze_image(
 
         # 1. Получаем предсказание ансамбля
         results = detector.predict(str(temp_file_path), threshold=threshold)
-        
+
         # 2. Генерируем Grad-CAM
         try:
             grad_cam_engine = ResNetGradCAM(detector.cnn)
             heatmap_img = grad_cam_engine.generate_heatmap(str(temp_file_path))
-            
+
             # Конвертируем PIL Image в base64 для отправки по сети
             buffered = io.BytesIO()
             heatmap_img.save(buffered, format="JPEG")
