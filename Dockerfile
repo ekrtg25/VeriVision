@@ -1,38 +1,27 @@
-# 1. Используем легкий официальный образ Python
 FROM python:3.10-slim
 
-# Set environment variables
-ENV PYTHONUNBUFFERED=1 \
-    PYTHONDONTWRITEBYTECODE=1 \
-    DEBIAN_FRONTEND=noninteractive
+WORKDIR /app
 
-# 2. Устанавливаем системные зависимости, необходимые для OpenCV и работы с изображениями
+# Отключаем создание pyc файлов и буферизацию вывода
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+
+# Устанавливаем системные зависимости, необходимые для OpenCV и других библиотек
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
-    libgl1-mesa-glx \
+    libgl1 \
     libglib2.0-0 \
     libgomp1 \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-# 3. Задаем рабочую директорию внутри контейнера
-WORKDIR /app
-
-# 4. Сначала копируем только requirements.txt (для эффективного кеширования слоев Docker)
+# Копируем и ставим зависимости Python
 COPY requirements.txt .
-
-# 5. Обновляем pip и устанавливаем зависимости без создания лишнего кеша
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 
-# 6. Копируем исходный код проекта и обученные веса моделей
-COPY . /app
+# Копируем весь проект
+COPY . .
 
-# 7. Открываем стандартный порт Streamlit
-EXPOSE 8501
-
-# 8. Проверка здоровья контейнера (Healthcheck)
-HEALTHCHECK CMD curl --fail http://localhost:8501/_stcore/health || exit 1
-
-# 9. Команда для запуска приложения
-ENTRYPOINT ["streamlit", "run", "app.py", "--server.port=8501", "--server.address=0.0.0.0"]
+# Запускаем сервер, используя порт, который выдаст Cloud Run (или 8080 по умолчанию)
+CMD uvicorn server:app --host 0.0.0.0 --port ${PORT:-8080}
