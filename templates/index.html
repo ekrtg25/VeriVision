@@ -1,342 +1,565 @@
 <!DOCTYPE html>
-<html lang="en" class="dark">
+<html lang="ru">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VeriVision // AI Detection Platform</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <script>
-        tailwind.config = {
-            darkMode: 'class',
-            theme: {
-                extend: {
-                    colors: {
-                        brand: {
-                            500: '#6366f1',
-                            600: '#4f46e5',
-                            900: '#1e1b4b',
-                        }
-                    }
-                }
-            }
+    <title>VeriVision MoE v3.4</title>
+    <style>
+        :root {
+            --bg: #0b0f19;
+            --surface: #131b2e;
+            --surface-card: #0f1626;
+            --border: #232f48;
+            --accent: #3b82f6;
+            --accent-hover: #2563eb;
+            --text-main: #f3f4f6;
+            --text-muted: #9ca3af;
+            --danger: #ef4444;
+            --success: #10b981;
+            --warning: #f59e0b;
         }
-    </script>
-</head>
-<body class="bg-slate-950 text-slate-100 min-h-screen font-sans antialiased selection:bg-indigo-500 selection:text-white"
-      x-data="verivisionApp()">
 
-    <!-- Header Navigation -->
-    <header class="border-b border-slate-800/80 bg-slate-950/80 backdrop-blur sticky top-0 z-50">
-        <div class="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
-            <div class="flex items-center gap-3">
-                <div class="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center font-bold text-white shadow-lg shadow-indigo-500/30">
-                    👁️
-                </div>
-                <span class="font-bold text-lg tracking-wider bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent">
-                    VeriVision
-                </span>
-                <span class="text-xs px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 font-mono">
-                    MoE v2.0
-                </span>
-            </div>
-            <div class="flex items-center gap-4 text-sm text-slate-400">
-                <span class="flex items-center gap-2">
-                    <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                    System Operational
-                </span>
-            </div>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: var(--bg);
+            color: var(--text-main);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        header {
+            width: 100%;
+            padding: 16px 40px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid var(--border);
+            background: rgba(19, 27, 46, 0.7);
+            backdrop-filter: blur(10px);
+            box-sizing: border-box;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .badge {
+            background: #1e293b;
+            color: #60a5fa;
+            font-size: 0.75rem;
+            padding: 4px 8px;
+            border-radius: 999px;
+            border: 1px solid #3b82f640;
+            font-weight: 600;
+        }
+
+        .container {
+            max-width: 860px;
+            width: 92%;
+            margin: 32px 0 60px 0;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        .info-section {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px 24px;
+        }
+
+        .info-title {
+            font-size: 1rem;
+            font-weight: 700;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: #93c5fd;
+        }
+
+        .steps-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+            gap: 12px;
+        }
+
+        .step-card {
+            background: var(--surface-card);
+            border: 1px solid #1c263c;
+            border-radius: 8px;
+            padding: 12px;
+        }
+
+        .step-icon {
+            font-size: 1.2rem;
+            margin-bottom: 6px;
+        }
+
+        .step-name {
+            font-weight: 600;
+            font-size: 0.85rem;
+            margin-bottom: 4px;
+        }
+
+        .step-desc {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            line-height: 1.3;
+        }
+
+        .upload-card {
+            border: 2px dashed var(--border);
+            border-radius: 12px;
+            padding: 36px 20px;
+            text-align: center;
+            background: var(--surface);
+            cursor: pointer;
+            transition: border-color 0.2s, background 0.2s;
+        }
+
+        .upload-card:hover {
+            border-color: var(--accent);
+            background: #17223b;
+        }
+
+        #fileInput {
+            display: none;
+        }
+
+        .preview-img {
+            max-width: 100%;
+            max-height: 320px;
+            border-radius: 8px;
+            display: none;
+            margin: 0 auto 16px auto;
+        }
+
+        .btn {
+            background: var(--accent);
+            color: #fff;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: background 0.2s, border-color 0.2s;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .btn:hover {
+            background: var(--accent-hover);
+        }
+
+        .btn-secondary {
+            background: #1f293d;
+            border: 1px solid var(--border);
+            color: var(--text-main);
+        }
+
+        .btn-secondary:hover {
+            background: #27354f;
+            border-color: #3b82f680;
+        }
+
+        .result-box {
+            display: none;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 24px;
+        }
+
+        .status-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 1.25rem;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+
+        .status-AI_GENERATED { color: var(--danger); }
+        .status-REAL_PHOTO { color: var(--success); }
+        .status-DIGITAL_ART { color: #a855f7; }
+        .status-UNCERTAIN { color: var(--warning); }
+
+        .band-badge {
+            font-size: 0.78rem;
+            padding: 3px 8px;
+            border-radius: 6px;
+            background: #1e293b;
+            color: var(--text-muted);
+            border: 1px solid var(--border);
+        }
+
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 16px;
+            padding-top: 16px;
+            border-top: 1px solid var(--border);
+            font-size: 0.85rem;
+        }
+
+        .metric-item {
+            display: flex;
+            justify-content: space-between;
+            background: var(--surface-card);
+            padding: 8px 12px;
+            border-radius: 6px;
+        }
+
+        /* Блок глубокого анализа */
+        .deep-section {
+            display: none;
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid var(--border);
+        }
+
+        .experts-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-top: 12px;
+        }
+
+        .expert-card {
+            background: var(--surface-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 12px;
+        }
+
+        .expert-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.88rem;
+            font-weight: 600;
+        }
+
+        .dir-AI { color: var(--danger); }
+        .dir-REAL { color: var(--success); }
+        .dir-NEUTRAL { color: var(--text-muted); }
+
+        .expert-desc {
+            font-size: 0.78rem;
+            color: var(--text-muted);
+            margin-top: 4px;
+        }
+
+        .overlay-preview {
+            width: 100%;
+            max-height: 220px;
+            object-fit: contain;
+            border-radius: 6px;
+            margin-top: 8px;
+            background: #000;
+        }
+
+        .heatmaps-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-top: 14px;
+        }
+
+        .heatmap-box {
+            background: var(--surface-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 10px;
+            text-align: center;
+        }
+
+        .heatmap-box img {
+            width: 100%;
+            height: 170px;
+            object-fit: contain;
+            border-radius: 6px;
+            background: #000;
+            margin-top: 6px;
+        }
+
+        .loader {
+            display: none;
+            margin: 20px auto;
+            border: 3px solid #232f48;
+            border-top: 3px solid var(--accent);
+            border-radius: 50%;
+            width: 32px;
+            height: 32px;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div style="display: flex; align-items: center; gap: 10px;">
+            <span style="font-size: 1.3rem; font-weight: 800;">👁️ VeriVision</span>
+            <span class="badge">MoE v3.4</span>
         </div>
     </header>
 
-    <!-- Main Bento Grid Layout -->
-    <main class="max-w-7xl mx-auto px-6 py-8">
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-
-            <!-- Bento Card 1: File Upload (Col Span 1) -->
-            <div class="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-6 backdrop-blur flex flex-col justify-between hover:border-slate-700 transition">
-                <div>
-                    <div class="flex items-center justify-between mb-4">
-                        <h2 class="font-semibold text-slate-200 flex items-center gap-2">
-                            <i class="fa-solid fa-cloud-arrow-up text-indigo-400"></i> Target Media
-                        </h2>
-                        <span class="text-xs text-slate-500">JPG, PNG</span>
-                    </div>
-
-                    <!-- Dropzone -->
-                    <label class="border-2 border-dashed border-slate-700 hover:border-indigo-500/80 rounded-xl p-6 flex flex-col items-center justify-center cursor-pointer transition bg-slate-950/40 min-h-[220px] relative overflow-hidden group">
-                        <template x-if="!imagePreview">
-                            <div class="text-center">
-                                <i class="fa-solid fa-image text-3xl text-slate-600 group-hover:text-indigo-400 transition mb-2"></i>
-                                <p class="text-sm font-medium text-slate-300">Click to upload or drag & drop</p>
-                                <p class="text-xs text-slate-500 mt-1">High resolution supported</p>
-                            </div>
-                        </template>
-                        <template x-if="imagePreview">
-                            <img :src="imagePreview" class="absolute inset-0 w-full h-full object-cover rounded-lg">
-                        </template>
-                        <input type="file" @change="handleFileUpload" class="hidden" accept="image/png, image/jpeg">
-                    </label>
+    <div class="container">
+        <!-- КАК ЭТО РАБОТАЕТ -->
+        <section class="info-section">
+            <div class="info-title">
+                <span>⚙️ Как работает система анализа</span>
+            </div>
+            <div class="steps-grid">
+                <div class="step-card">
+                    <div class="step-icon">🎨</div>
+                    <div class="step-name">1. Zero-Shot CLIP</div>
+                    <div class="step-desc">Отсекает не-фото контент, 3D-графику и иллюстрации до запуска форензики.</div>
                 </div>
-
-                <!-- Controls -->
-                <div class="mt-6 space-y-4">
-                    <div>
-                        <div class="flex justify-between text-xs text-slate-400 mb-1">
-                            <span>Sensitivity Threshold</span>
-                            <span x-text="threshold"></span>
-                        </div>
-                        <input type="range" min="0.1" max="0.9" step="0.01" x-model="threshold" class="w-full accent-indigo-500 bg-slate-800 rounded-lg cursor-pointer">
-                    </div>
-
-                    <button @click="analyzeImage()" 
-                            :disabled="!selectedFile || loading"
-                            class="w-full py-3 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-800 disabled:text-slate-600 font-medium text-sm transition shadow-lg shadow-indigo-600/20 flex items-center justify-center gap-2">
-                        <template x-if="loading">
-                            <i class="fa-solid fa-spinner animate-spin"></i>
-                        </template>
-                        <span x-text="loading ? 'Analyzing Artifacts...' : 'Run Forensic Scan'"></span>
-                    </button>
+                <div class="step-card">
+                    <div class="step-icon">🔬</div>
+                    <div class="step-name">2. Физика матрицы</div>
+                    <div class="step-desc">PRNU оценивает след кремниевого сенсора с учетом подавления артефактов сжатия.</div>
+                </div>
+                <div class="step-card">
+                    <div class="step-icon">📊</div>
+                    <div class="step-name">3. Анализ сжатия</div>
+                    <div class="step-desc">ELA ищет неоднородности квантования JPEG и следы локального монтажа.</div>
+                </div>
+                <div class="step-card">
+                    <div class="step-icon">🧠</div>
+                    <div class="step-name">4. ConvNeXt + FFT</div>
+                    <div class="step-desc">Multi-crop пулинг и 2D-спектр выявляют диффузионные сетки генераторов.</div>
                 </div>
             </div>
+        </section>
 
-            <!-- Bento Card 2: Main Verdict & Gating Status (Col Span 2) -->
-            <div class="md:col-span-2 bg-slate-900/60 border border-slate-800/80 rounded-2xl p-6 backdrop-blur flex flex-col justify-between">
-                <div>
-                    <div class="flex items-center justify-between mb-4">
-                        <h2 class="font-semibold text-slate-200 flex items-center gap-2">
-                            <i class="fa-solid fa-shield-halved text-indigo-400"></i> Ensemble Verdict
-                        </h2>
-                        <span class="text-xs font-mono text-slate-500">Stacking Meta-Model</span>
-                    </div>
+        <!-- ЗАГРУЗКА -->
+        <div class="upload-card" onclick="document.getElementById('fileInput').click()">
+            <img id="preview" class="preview-img" alt="Preview">
+            <p id="uploadText" style="margin: 0; color: var(--text-muted);">
+                Нажмите или перетащите изображение (JPG, PNG, WebP)
+            </p>
+            <input type="file" id="fileInput" accept="image/*" onchange="handleFileSelect(event)">
+        </div>
 
-                    <!-- Gating Alert Banner -->
-                    <template x-if="result && result.gating_active">
-                        <div class="mb-4 p-4 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-300 text-sm flex items-start gap-3">
-                            <i class="fa-solid fa-triangle-exclamation text-amber-400 mt-0.5"></i>
-                            <div>
-                                <p class="font-semibold">Difficult Shooting Conditions Detected</p>
-                                <p class="text-xs text-amber-400/80 mt-0.5">OpenCV Gating active: Harsh lighting or motion blur detected. ConvNeXt & SRM weights adjusted to prevent False Positives.</p>
-                            </div>
-                        </div>
-                    </template>
+        <div class="loader" id="loader"></div>
 
-                    <!-- Verdict Card Area -->
-                    <div class="bg-slate-950/60 rounded-xl p-8 border border-slate-800/50 text-center flex flex-col items-center justify-center min-h-[180px]">
-                        <template x-if="!result && !loading">
-                            <p class="text-slate-500 text-sm">Upload an image and run scan to display verdict</p>
-                        </template>
-
-                        <template x-if="result">
-                            <div class="space-y-3">
-                                <div class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-sm font-semibold tracking-wide"
-                                     :class="result.is_fake ? 'bg-rose-500/10 text-rose-400 border border-rose-500/30' : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30'">
-                                    <i :class="result.is_fake ? 'fa-solid fa-robot' : 'fa-solid fa-camera'"></i>
-                                    <span x-text="result.is_fake ? 'AI-Generated Image' : 'Real Image'"></span>
-                                </div>
-                                <div class="text-4xl font-extrabold tracking-tight text-white">
-                                    <span x-text="result.is_fake ? (result.final_score * 100).toFixed(1) + '%' : ((1 - result.final_score) * 100).toFixed(1) + '%'"></span>
-                                    <span class="text-xs font-normal text-slate-400 block mt-1" x-text="result.is_fake ? 'Synthetic Probability Score' : 'Authentic Confidence Score'"></span>
-                                </div>
-                            </div>
-                        </template>
-                    </div>
-                </div>
-
-                <!-- Probability Bar -->
-                <div class="mt-6" x-if="result">
-                    <div class="flex justify-between text-xs text-slate-400 mb-2">
-                        <span>Real</span>
-                        <span>AI-Generated</span>
-                    </div>
-                    <div class="w-full h-3 bg-slate-800 rounded-full overflow-hidden flex">
-                        <div class="h-full bg-emerald-500 transition-all duration-500" :style="`width: ${100 - (result ? result.final_score * 100 : 50)}%`"></div>
-                        <div class="h-full bg-rose-500 transition-all duration-500" :style="`width: ${result ? result.final_score * 100 : 50}%`"></div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Bento Card 3: Visual Expert (ConvNeXt) -->
-            <div class="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-5 backdrop-blur hover:border-slate-700 transition">
-                <div class="flex items-center justify-between mb-3">
-                    <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Visual Expert</span>
-                    <i class="fa-solid fa-brain text-indigo-400 text-sm"></i>
-                </div>
-                <div class="text-sm font-medium text-slate-200">ConvNeXt-Tiny</div>
-                <p class="text-xs text-slate-500 mt-1 mb-4">Semantic artifacts & texture anomalies</p>
-                <div class="flex items-baseline justify-between">
-                    <span class="text-2xl font-bold text-white" x-text="result ? (result.cnn_prob * 100).toFixed(1) + '%' : '--'"></span>
-                    <span class="text-xs font-mono px-2 py-0.5 rounded"
-                          :class="result && result.cnn_prob >= 0.5 ? 'bg-rose-500/10 text-rose-400' : 'bg-slate-800 text-slate-400'"
-                          x-text="result ? (result.cnn_prob >= 0.5 ? 'FAKE' : 'REAL') : 'IDLE'"></span>
-                </div>
-            </div>
-
-            <!-- Bento Card 4: Spectral Expert (FFT) -->
-            <div class="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-5 backdrop-blur hover:border-slate-700 transition">
-                <div class="flex items-center justify-between mb-3">
-                    <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Spectral Expert</span>
-                    <i class="fa-solid fa-wave-square text-indigo-400 text-sm"></i>
-                </div>
-                <div class="text-sm font-medium text-slate-200">1D FFT Radial Profile</div>
-                <p class="text-xs text-slate-500 mt-1 mb-4">Upsampling & grid frequency patterns</p>
-                <div class="flex items-baseline justify-between">
-                    <span class="text-2xl font-bold text-white" x-text="result ? (result.fft_prob * 100).toFixed(1) + '%' : '--'"></span>
-                    <span class="text-xs font-mono px-2 py-0.5 rounded"
-                          :class="result && result.fft_prob >= 0.5 ? 'bg-rose-500/10 text-rose-400' : 'bg-slate-800 text-slate-400'"
-                          x-text="result ? (result.fft_prob >= 0.5 ? 'FAKE' : 'REAL') : 'IDLE'"></span>
-                </div>
-            </div>
-
-            <!-- Bento Card 5: Noise Expert (SRM) -->
-            <div class="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-5 backdrop-blur hover:border-slate-700 transition">
-                <div class="flex items-center justify-between mb-3">
-                    <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Noise Expert</span>
-                    <i class="fa-solid fa-microscope text-indigo-400 text-sm"></i>
-                </div>
-                <div class="text-sm font-medium text-slate-200">SRM Filter Residuals</div>
-                <p class="text-xs text-slate-500 mt-1 mb-4">Matrix noise statistics (Variance/Skew)</p>
-                <div class="flex items-baseline justify-between">
-                    <span class="text-2xl font-bold text-white" x-text="result ? (result.srm_prob * 100).toFixed(1) + '%' : '--'"></span>
-                    <span class="text-xs font-mono px-2 py-0.5 rounded"
-                          :class="result && result.srm_prob >= 0.5 ? 'bg-rose-500/10 text-rose-400' : 'bg-slate-800 text-slate-400'"
-                          x-text="result ? (result.srm_prob >= 0.5 ? 'FAKE' : 'REAL') : 'IDLE'"></span>
+        <!-- РЕЗУЛЬТАТ -->
+        <div class="result-box" id="resultBox">
+            <div class="status-header">
+                <span id="verdictLabel">...</span>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <span id="bandBadge" class="band-badge"></span>
+                    <span id="scoreBadge" style="font-size: 1.1rem;"></span>
                 </div>
             </div>
             
-            <!-- Bento Card 6: Grad-CAM Visualization (Col Span 1) -->
-            <div class="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-5 backdrop-blur hover:border-slate-700 transition flex flex-col">
-                <div class="flex items-center justify-between mb-3">
-                    <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Activation Map</span>
-                    <i class="fa-solid fa-fire text-indigo-400 text-sm"></i>
+            <p id="verdictDesc" style="color: var(--text-muted); font-size: 0.9rem; margin: 0 0 16px 0;"></p>
+
+            <button id="deepBtn" class="btn btn-secondary" style="width: 100%;" onclick="toggleDeepAnalysis()">
+                🔬 Развернуть глубокий форензик-анализ
+            </button>
+
+            <!-- МЕТРИКИ -->
+            <div class="metrics-grid">
+                <div class="metric-item">
+                    <span>ConvNeXt Base:</span>
+                    <strong id="m_nn">-</strong>
                 </div>
-                <div class="text-sm font-medium text-slate-200">Grad-CAM (ConvNeXt)</div>
-                <p class="text-xs text-slate-500 mt-1 mb-4">Highlights pixel regions that most strongly influenced the visual expert's decision (red = high impact).</p>
-                <div class="flex-grow flex items-center justify-center bg-slate-950/60 rounded-xl border border-slate-800/50 overflow-hidden min-h-[160px] relative">
-                    <template x-if="!result || !result.gradcam_b64">
-                        <i class="fa-solid fa-image text-3xl text-slate-700"></i>
-                    </template>
-                    <template x-if="result && result.gradcam_b64">
-                        <img :src="result.gradcam_b64" class="absolute inset-0 w-full h-full object-cover">
-                    </template>
+                <div class="metric-item">
+                    <span>Crop Variance:</span>
+                    <strong id="m_var">-</strong>
+                </div>
+                <div class="metric-item">
+                    <span>ELA Error:</span>
+                    <strong id="m_ela">-</strong>
+                </div>
+                <div class="metric-item">
+                    <span>PRNU Sensor:</span>
+                    <strong id="m_prnu">-</strong>
+                </div>
+                <div class="metric-item">
+                    <span>FFT Spectrum:</span>
+                    <strong id="m_fft">-</strong>
+                </div>
+                <div class="metric-item">
+                    <span>Disagreement:</span>
+                    <strong id="m_dis">-</strong>
                 </div>
             </div>
 
-            <!-- Bento Card 7: Terminal Logs (Col Span 2) -->
-            <div class="md:col-span-2 bg-slate-950 border border-slate-800/80 rounded-2xl p-5 backdrop-blur font-mono text-sm overflow-hidden flex flex-col">
-                <div class="flex items-center justify-between mb-4 border-b border-slate-800 pb-3">
-                    <div class="flex gap-2">
-                        <div class="w-3 h-3 rounded-full bg-rose-500/80"></div>
-                        <div class="w-3 h-3 rounded-full bg-amber-500/80"></div>
-                        <div class="w-3 h-3 rounded-full bg-emerald-500/80"></div>
-                    </div>
-                    <span class="text-xs text-slate-500">system_analysis.log</span>
+            <!-- РАЗДЕЛ ГЛУБОКОГО АНАЛИЗА -->
+            <div class="deep-section" id="deepSection">
+                <div style="font-size: 0.95rem; font-weight: 700; color: #93c5fd;">
+                    Детализация решений экспертов
                 </div>
-                <div class="flex-grow overflow-y-auto space-y-1.5 text-slate-400 h-40" id="terminal-container">
-                    <template x-for="log in logs">
-                        <div class="leading-relaxed">
-                            <span class="text-indigo-500 mr-2">></span>
-                            <span x-text="log"></span>
-                        </div>
-                    </template>
-                    <template x-if="loading">
-                        <div class="animate-pulse text-indigo-500">_</div>
-                    </template>
-                </div>
-            </div>
+                <div class="experts-list" id="expertsList"></div>
 
-            <!-- Bento Card 8: System Architecture Explanation (Col Span 3) -->
-            <div class="md:col-span-3 bg-slate-900/60 border border-slate-800/80 rounded-2xl p-6 backdrop-blur hover:border-slate-700 transition">
-                <h2 class="font-semibold text-slate-200 flex items-center gap-2 mb-4">
-                    <i class="fa-solid fa-network-wired text-indigo-400"></i> How VeriVision Works
-                </h2>
-                <div class="grid grid-cols-1 md:grid-cols-4 gap-6 text-sm text-slate-400">
-                    <div>
-                        <p class="font-medium text-slate-300 mb-1"><i class="fa-solid fa-brain text-indigo-500 mr-2"></i> Visual (ConvNeXt)</p>
-                        <p class="text-xs">Analyzes raw pixels to detect semantic inconsistencies, unnatural blending, and AI-generated texture artifacts using a deep convolutional network.</p>
+                <div class="heatmaps-grid">
+                    <div class="heatmap-box">
+                        <div style="font-size: 0.8rem; font-weight: 600;">Карта ELA</div>
+                        <img id="elaImg" alt="ELA Map">
                     </div>
-                    <div>
-                        <p class="font-medium text-slate-300 mb-1"><i class="fa-solid fa-wave-square text-indigo-500 mr-2"></i> Spectral (FFT)</p>
-                        <p class="text-xs">Transforms the image into a 1D frequency profile to spot invisible grid patterns left behind by AI upsampling and diffusion processes.</p>
-                    </div>
-                    <div>
-                        <p class="font-medium text-slate-300 mb-1"><i class="fa-solid fa-microscope text-indigo-500 mr-2"></i> Noise (SRM)</p>
-                        <p class="text-xs">Strips away image content using high-pass filters to evaluate underlying matrix noise, looking for synthetic digital signatures.</p>
-                    </div>
-                    <div>
-                        <p class="font-medium text-slate-300 mb-1"><i class="fa-solid fa-scale-balanced text-indigo-500 mr-2"></i> Meta-Model</p>
-                        <p class="text-xs">A logistic regression algorithm acts as the judge, intelligently weighing the three experts' opinions based on dynamic OpenCV lighting/blur gating.</p>
+                    <div class="heatmap-box">
+                        <div style="font-size: 0.8rem; font-weight: 600;">2D FFT Спектрограмма</div>
+                        <img id="fftImg" alt="FFT Spectrum">
                     </div>
                 </div>
             </div>
-
         </div>
-    </main>
+    </div>
 
-    <!-- Alpine.js Application Logic -->
     <script>
-        function verivisionApp() {
-            return {
-                selectedFile: null,
-                imagePreview: null,
-                threshold: 0.50,
-                loading: false,
-                result: null,
-                logs: [],
+        let currentFile = null;
+        let isDeepOpen = false;
 
-                handleFileUpload(event) {
-                    const file = event.target.files[0];
-                    if (file) {
-                        this.selectedFile = file;
-                        this.imagePreview = URL.createObjectURL(file);
-                        this.result = null;
-                        this.logs = ["[sys] Image loaded into memory. Ready for scan."];
+        function handleFileSelect(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            currentFile = file;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const preview = document.getElementById('preview');
+                preview.src = e.target.result;
+                preview.style.display = 'block';
+                document.getElementById('uploadText').style.display = 'none';
+                analyzeImage(file);
+            };
+            reader.readAsDataURL(file);
+        }
+
+        async function analyzeImage(file) {
+            const loader = document.getElementById('loader');
+            const resultBox = document.getElementById('resultBox');
+            const deepSection = document.getElementById('deepSection');
+            const deepBtn = document.getElementById('deepBtn');
+            
+            loader.style.display = 'block';
+            resultBox.style.display = 'none';
+            deepSection.style.display = 'none';
+            isDeepOpen = false;
+            deepBtn.innerText = '🔬 Развернуть глубокий форензик-анализ';
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                const res = await fetch('/api/analyze', { method: 'POST', body: formData });
+                const data = await res.json();
+                
+                loader.style.display = 'none';
+                resultBox.style.display = 'block';
+
+                const label = document.getElementById('verdictLabel');
+                label.innerText = data.label;
+                label.className = 'status-' + data.verdict;
+
+                document.getElementById('verdictDesc').innerText = data.description || 
+                    (data.is_uncertain ? 'Эксперты разошлись во мнении. Рекомендуется инструментальная проверка.' : 'Решение принято согласованным ансамблем.');
+
+                const scoreBadge = document.getElementById('scoreBadge');
+                if (data.ai_probability !== undefined) {
+                    scoreBadge.innerText = `AI Score: ${(data.ai_probability * 100).toFixed(1)}%`;
+                    scoreBadge.style.color = data.ai_probability >= 0.55 ? 'var(--danger)' : (data.ai_probability <= 0.40 ? 'var(--success)' : 'var(--warning)');
+                }
+
+                const bandBadge = document.getElementById('bandBadge');
+                bandBadge.innerText = `Уверенность: ${data.confidence_band || 'High'}`;
+
+                if (data.metrics) {
+                    const raw = data.metrics.raw_features || {};
+                    document.getElementById('m_nn').innerText = raw.nn_mean !== undefined ? raw.nn_mean.toFixed(3) : '-';
+                    document.getElementById('m_var').innerText = raw.nn_std !== undefined ? raw.nn_std.toFixed(3) : '-';
+                    document.getElementById('m_ela').innerText = raw.ela !== undefined ? raw.ela.toFixed(3) : '-';
+                    document.getElementById('m_prnu').innerText = raw.prnu !== undefined ? raw.prnu.toFixed(2) : '-';
+                    document.getElementById('m_fft').innerText = raw.fft !== undefined ? raw.fft.toFixed(2) : '-';
+                    document.getElementById('m_dis').innerText = data.metrics.disagreement_std !== undefined ? data.metrics.disagreement_std.toFixed(3) : '-';
+                }
+
+                if (data.heatmaps) {
+                    if (data.heatmaps.ela_image) {
+                        document.getElementById('elaImg').src = 'data:image/png;base64,' + data.heatmaps.ela_image;
                     }
-                },
-
-                async analyzeImage() {
-                    if (!this.selectedFile) return;
-
-                    this.loading = true;
-                    this.result = null;
-                    this.logs = [];
-                    
-                    this.logs.push(`[sys] Initializing Hybrid Ensemble Detector (Threshold: ${this.threshold})...`);
-                    setTimeout(() => this.logs.push("[cv2] Calculating OpenCV gating penalties..."), 400);
-                    setTimeout(() => this.logs.push("[model] Running ConvNeXt-Tiny Architecture..."), 800);
-                    setTimeout(() => this.logs.push("[model] Extracting FFT Spectral Profile..."), 1200);
-                    setTimeout(() => this.logs.push("[model] Applying SRM Filters..."), 1600);
-
-                    const formData = new FormData();
-                    formData.append('file', this.selectedFile);
-                    formData.append('threshold', this.threshold);
-
-                    try {
-                        const response = await fetch('/api/analyze', {
-                            method: 'POST',
-                            body: formData
-                        });
-
-                        if (!response.ok) throw new Error('Analysis failed');
-                        
-                        this.result = await response.json();
-                        
-                        this.logs.push("[xai] Generating Grad-CAM activation map...");
-                        this.logs.push("[ensemble] Computing Logistic Regression Stacking...");
-                        
-                        if(this.result.gating_active) {
-                            this.logs.push("[warn] Gating applied: Confidence weights dynamically penalized.");
-                        }
-
-                        this.logs.push(`[sys] Analysis complete. Final Score: ${(this.result.final_score).toFixed(4)}`);
-
-                    } catch (error) {
-                        this.logs.push("[error] " + error.message);
-                    } finally {
-                        this.loading = false;
+                    if (data.heatmaps.fft_image) {
+                        document.getElementById('fftImg').src = 'data:image/png;base64,' + data.heatmaps.fft_image;
                     }
                 }
+
+            } catch (err) {
+                loader.style.display = 'none';
+                alert('Ошибка анализа: ' + err);
+            }
+        }
+
+        async function toggleDeepAnalysis() {
+            const deepSection = document.getElementById('deepSection');
+            const deepBtn = document.getElementById('deepBtn');
+
+            if (isDeepOpen) {
+                deepSection.style.display = 'none';
+                deepBtn.innerText = '🔬 Развернуть глубокий форензик-анализ';
+                isDeepOpen = false;
+                return;
+            }
+
+            if (!currentFile) return;
+
+            deepBtn.innerText = '⏳ Загрузка подробного анализа...';
+            const formData = new FormData();
+            formData.append('file', currentFile);
+
+            try {
+                const res = await fetch('/api/deep-analysis', { method: 'POST', body: formData });
+                const deepData = await res.json();
+
+                const list = document.getElementById('expertsList');
+                list.innerHTML = '';
+
+                (deepData.experts || []).forEach(exp => {
+                    const card = document.createElement('div');
+                    card.className = 'expert-card';
+
+                    const dirClass = 'dir-' + exp.direction;
+                    const sign = exp.contribution_percent > 0 ? '+' : '';
+
+                    let overlayHtml = '';
+                    if (exp.heatmap_b64) {
+                        overlayHtml = `<img class="overlay-preview" src="data:image/jpeg;base64,${exp.heatmap_b64}" alt="Heatmap Overlay">`;
+                    }
+
+                    card.innerHTML = `
+                        <div class="expert-head">
+                            <span>${exp.name} (P = ${(exp.probability * 100).toFixed(1)}%)</span>
+                            <span class="${dirClass}">Вклад: ${sign}${exp.contribution_percent}%</span>
+                        </div>
+                        <div class="expert-desc">${exp.verdict_text}</div>
+                        ${overlayHtml}
+                    `;
+                    list.appendChild(card);
+                });
+
+                deepSection.style.display = 'block';
+                deepBtn.innerText = '🔼 Скрыть глубокий форензик-анализ';
+                isDeepOpen = true;
+            } catch (err) {
+                alert('Ошибка глубокого анализа: ' + err);
+                deepBtn.innerText = '🔬 Развернуть глубокий форензик-анализ';
             }
         }
     </script>

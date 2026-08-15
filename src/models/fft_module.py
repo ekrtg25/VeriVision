@@ -1,50 +1,34 @@
+"""
+FFT Spectral Profile Analyzer with anti-glare normalization.
+"""
+
 import cv2
 import numpy as np
-import os
 
-class SpectralAnalyzer:
-    def __init__(self, target_size=(512, 512)):
-        self.target_size = target_size
 
-    def get_1d_power_spectrum(self, image_path):
+class FFTSpectralExtractor:
+    def __init__(self):
+        self.clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+
+    def extract_spectral_features(self, image_np: np.ndarray) -> float:
         """
-        Извлекает 1D радиальный профиль мощности спектра Фурье.
-        Возвращает вектор признаков, описывающий затухание частот.
+        Computes the normalized high-frequency energy ratio in the 2D Fourier domain.
         """
-        if not os.path.exists(image_path):
-            return None
+        if len(image_np.shape) == 3:
+            gray = cv2.cvtColor(image_np, cv2.COLOR_RGB2GRAY)
+        else:
+            gray = image_np
 
-        img = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
-        if img is None:
-            return None
-            
-        img = cv2.resize(img, self.target_size)
-        
-        # 1. 2D FFT
-        f = np.fft.fft2(img)
-        fshift = np.fft.fftshift(f)
-        
-        # 2. Амплитудный спектр (Power Spectrum) в логарифмическом масштабе
-        magnitude_spectrum = np.abs(fshift) ** 2
-        
-        # 3. Азимутальное усреднение (Radial Profile)
-        center = (self.target_size[0] // 2, self.target_size[1] // 2)
-        y, x = np.indices((self.target_size[0], self.target_size[1]))
-        r = np.sqrt((x - center[1])**2 + (y - center[0])**2)
-        r = r.astype(int)
+        # Suppress blinding highlights/glare before FFT
+        normalized_gray = self.clahe.apply(gray)
 
-        # Считаем среднее значение энергии для каждого радиуса
-        tbin = np.bincount(r.ravel(), magnitude_spectrum.ravel())
-        nr = np.bincount(r.ravel())
-        radialprofile = tbin / nr
-        
-        # Переводим в логарифмический масштаб (чтобы выровнять огромные перепады)
-        radialprofile = np.log1p(radialprofile)
-        
-        # Берем первые 200 частот (самые информативные), игнорируем самый центр (DC)
-        features = radialprofile[1:201] 
-        
-        # Нормализация вектора (чтобы нивелировать разницу в освещенности/контрасте)
-        features = (features - np.mean(features)) / (np.std(features) + 1e-8)
-        
-        return features
+        # 2D Fast Fourier Transform
+        f_transform = np.fft.fft2(normalized_gray)
+        f_shift = np.fft.fftshift(f_transform)
+        magnitude_spectrum = 20 * np.log(np.abs(f_shift) + 1e-9)
+
+        # Anomaly metric: high-frequency variance over mean intensity
+        std_val = float(np.std(magnitude_spectrum))
+        mean_val = float(np.mean(magnitude_spectrum))
+
+        return float(std_val / (mean_val + 1e-5))
