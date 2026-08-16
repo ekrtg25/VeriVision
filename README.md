@@ -7,8 +7,15 @@
 [![PyTorch](https://img.shields.io/badge/PyTorch-2.x%20%7C%20CUDA%20%7C%20MPS-ee4c2c.svg?style=flat&logo=pytorch)](https://pytorch.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-Serving-009688.svg?style=flat&logo=fastapi)](https://fastapi.tiangolo.com/)
 [![DINOv2](https://img.shields.io/badge/Backbone-DINOv2%20ViT--B%2F14-1877f2.svg?style=flat)](https://github.com/facebookresearch/dinov2)
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-Cloud%20Run-4285F4.svg?style=flat&logo=googlecloud)](https://verivision-280084706583.europe-west1.run.app)
 
 **Детектор синтетических изображений (Midjourney v6, SDXL, Flux, DALL·E 3), объединяющий дообученный перцептивный трансформер (DINOv2) с классической форензикой (ELA, 2D FFT, шумовой остаток) через фьюжн с динамическим гейтингом.**
+
+### 🚀 [Потыкайте сами →](https://verivision-280084706583.europe-west1.run.app)
+
+Загрузите своё фото или найденную в интернете AI-генерацию и получите вердикт с разбивкой по экспертам вживую, без установки.
+
+> ⏱️ Сервис на Cloud Run с холодным стартом — если контейнер «уснул» без запросов, первая загрузка может занять 10–30 секунд, пока не поднимется DINOv2. Это нормально, не баг.
 
 <p align="center">
   <img src="docs/media/demo.gif" alt="VeriVision demo" width="820px" style="border-radius: 12px;" />
@@ -145,6 +152,8 @@ final_prob = sigmoid(fused_logit)
 ---
 
 ## Установка и запуск
+
+> Если просто хочется посмотреть на результат — см. [живое демо](https://verivision-280084706583.europe-west1.run.app) выше, ставить ничего не нужно. Дальше — для тех, кто хочет запустить локально или доработать код.
 
 ### 1. Окружение
 
