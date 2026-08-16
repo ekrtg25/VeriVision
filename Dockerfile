@@ -39,4 +39,4 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 # Запускаем сервер на порту, который выдаст Cloud Run (или 8080 по умолчанию)
-CMD uvicorn server:app --host 0.0.0.0 --port ${PORT:-8080}
+CMD exec uvicorn server:app --host 0.0.0.0 --port ${PORT:-8080}
