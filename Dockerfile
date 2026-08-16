@@ -25,6 +25,13 @@ RUN pip install --no-cache-dir --upgrade pip
 # Устанавливаем согласованную связку PyTorch CPU
 RUN pip install --no-cache-dir torch torchvision --index-url https://download.pytorch.org/whl/cpu
 
+# transformers (DINOv2 backbone) и open-clip-torch (Content Prefilter) —
+# не входят в requirements.txt, но нужны для импорта src/serving/ensemble.py
+# и src/models/prefilter.py. Без них процесс падает на "from transformers
+# import AutoModel" еще до старта uvicorn, и Cloud Run репортит это как
+# "не слушает порт" (хотя причина не в порте, а в упавшем импорте).
+RUN pip install --no-cache-dir transformers open-clip-torch
+
 # Устанавливаем остальные пакеты
 RUN pip install --no-cache-dir -r requirements.txt
 
