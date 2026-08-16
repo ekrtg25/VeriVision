@@ -156,10 +156,10 @@ python -m venv venv
 source venv/bin/activate        # Windows: venv\Scripts\activate
 
 pip install -r requirements.txt
-pip install torch torchvision transformers open-clip-torch   # см. примечание ниже
+pip install torch torchvision transformers open-clip-torch pillow-heif matplotlib   # см. примечание ниже
 ```
 
-> ⚠️ На момент написания `requirements.txt` не фиксирует `torch`, `torchvision`, `transformers` и `open-clip-torch` — они ставятся отдельно (в `Dockerfile` torch/torchvision ставятся отдельной командой с CPU-индексом именно по этой причине). Если планируете, чтобы `pip install -r requirements.txt` сразу поднимал рабочее окружение — стоит добавить их в файл явно.
+> ⚠️ `requirements.txt` не фиксирует `torch`, `torchvision`, `transformers`, `open-clip-torch`, `pillow-heif` и `matplotlib` — все они реально импортируются в `server.py`/`src/`, но их нужно ставить отдельно (в `Dockerfile` они тоже ставятся отдельными командами: torch/torchvision — с CPU-индексом, остальные — отдельной строкой ниже). Без них импорт падает ещё до старта сервера (`from transformers import AutoModel`, `import pillow_heif`, `import matplotlib` — по очереди, в порядке импорта в `server.py`). Если планируете, чтобы `pip install -r requirements.txt` сразу поднимал рабочее окружение — стоит добавить все шесть пакетов в файл явно.
 
 ### 2. Веса моделей
 
@@ -174,7 +174,9 @@ pip install torch torchvision transformers open-clip-torch   # см. приме�
 uvicorn server:app --host 0.0.0.0 --port 8080 --reload
 ```
 
-Интерфейс — `http://localhost:8080`. Есть `Dockerfile` для контейнерного деплоя (проверен под Cloud Run: слушает `$PORT`, ставит torch CPU-only).
+Интерфейс — `http://localhost:8080`. Есть `Dockerfile` для контейнерного деплоя (проверен под Cloud Run: слушает `$PORT`, ставит torch CPU-only, `transformers`, `open-clip-torch`, `pillow-heif`, `matplotlib`).
+
+> 🐛 **Известный грабль при деплое на Cloud Run.** Если контейнер падает с ошибкой вида *"container failed to start and listen on the port"* — это почти всегда не про порт, а про упавший импорт при старте (`server.py` создаёт `VeriVisionEnsemble` на уровне модуля, до старта uvicorn). Типичные виновники: (1) не поставлен один из пакетов, которых нет в `requirements.txt` — `transformers`, `open-clip-torch`, `pillow-heif`, `matplotlib` — процесс падает на первом же отсутствующем импорте, и Cloud Run будет ретраить рестарт, штампуя один и тот же traceback в логах десятками записей; (2) `models/calibrated_head.pth` не попал в билд-контекст — падает `FileNotFoundError` при инициализации ансамбля (веса не в репозитории, см. `.gitignore`). Открывай Logs URL из ошибки и смотри на **самый первый** уникальный traceback — остальные, скорее всего, его повторы.
 
 ### 4. Оценка на OOD-датасете
 

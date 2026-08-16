@@ -25,12 +25,15 @@ RUN pip install --no-cache-dir --upgrade pip
 # Устанавливаем согласованную связку PyTorch CPU
 RUN pip install --no-cache-dir torch torchvision --index-url https://download.pytorch.org/whl/cpu
 
-# transformers (DINOv2 backbone) и open-clip-torch (Content Prefilter) —
-# не входят в requirements.txt, но нужны для импорта src/serving/ensemble.py
-# и src/models/prefilter.py. Без них процесс падает на "from transformers
-# import AutoModel" еще до старта uvicorn, и Cloud Run репортит это как
-# "не слушает порт" (хотя причина не в порте, а в упавшем импорте).
-RUN pip install --no-cache-dir transformers open-clip-torch
+# Пакеты, которые реально импортируются в server.py и src/, но не входят
+# в requirements.txt — без них процесс падает на импорте еще до старта
+# uvicorn, и Cloud Run репортит это как "не слушает порт" (хотя причина
+# не в порте, а в упавшем импорте):
+#   transformers    — DINOv2 backbone (src/serving/ensemble.py)
+#   open-clip-torch — Content Prefilter (src/models/prefilter.py)
+#   pillow-heif     — поддержка .heic/.heif загрузок (server.py)
+#   matplotlib      — рендер heatmap-визуализаций (server.py)
+RUN pip install --no-cache-dir transformers open-clip-torch pillow-heif matplotlib
 
 # Устанавливаем остальные пакеты
 RUN pip install --no-cache-dir -r requirements.txt
