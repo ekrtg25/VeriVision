@@ -2,11 +2,13 @@ FROM python:3.12-slim
 
 WORKDIR /app
 
-# Отключаем создание pyc файлов и буферизацию вывода
+# Отключаем создание pyc-файлов и буферизацию вывода логов
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
+# Задаем дефолтный порт, если Cloud Run не передаст свой
+ENV PORT=8080
 
-# Устанавливаем системные зависимости, необходимые для OpenCV и других библиотек
+# Устанавливаем системные зависимости для OpenCV и сборки
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     libgl1 \
@@ -15,28 +17,19 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Копируем requirements.txt отдельно, чтобы слой кэшировался,
-# пока зависимости не меняются (ускоряет повторные сборки)
+# Копируем зависимости
 COPY requirements.txt .
 
 RUN pip install --no-cache-dir --upgrade pip
 
-# Ставим torch и torchvision ВМЕСТЕ, одной командой, из одного индекса —
-# это критично: torchvision жёстко привязан к конкретной версии torch,
-# и если ставить их порознь/с разными пинами версий, получаем ошибки
-# импорта вида "torch.library has no attribute register_fake".
-# Также это CPU-only сборка (без этого pip по умолчанию может подтянуть
-# CUDA-версию весом 2-3+ ГБ, которая тут не нужна).
+# Устанавливаем согласованную связку PyTorch CPU
 RUN pip install --no-cache-dir torch torchvision --index-url https://download.pytorch.org/whl/cpu
 
-# Остальные зависимости из requirements.txt
-# (убедись, что там НЕТ строк "torch"/"torchvision" без индекса — иначе
-# pip может переустановить их в несовместимой/GPU-версии поверх уже
-# поставленной согласованной CPU-пары выше)
+# Устанавливаем остальные пакеты
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Копируем весь проект (server.py, index.html, статика, веса моделей)
+# Копируем исходный код приложения и веса
 COPY . .
 
-# Запускаем сервер на порту, который выдаст Cloud Run (или 8080 по умолчанию)
-CMD exec uvicorn server:app --host 0.0.0.0 --port ${PORT:-8080}
+# Запуск через sh -c для корректной подстановки переменной $PORT от Cloud Run
+CMD ["sh", "-c", "exec uvicorn server:app --host 0.0.0.0 --port ${PORT}"]
