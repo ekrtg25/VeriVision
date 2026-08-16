@@ -21,25 +21,20 @@
 ## Скриншоты по состояниям вердикта
 
 <!--
-  Ниже — 4 плейсхолдера под 4 реальных вердикта из src/serving/ensemble.py:
-  REAL_PHOTO / AI_GENERATED / LOCAL_SPLICE / DIGITAL_ART.
+  Ниже — 3 плейсхолдера под ключевые вердикты из src/serving/ensemble.py:
+  REAL_PHOTO / AI_GENERATED / LOCAL_SPLICE.
   Сохраняй скриншоты СЮДА, под этими именами — тогда картинки подхватятся автоматически:
     docs/media/verdict_real.png
     docs/media/verdict_ai.png
     docs/media/verdict_splice.png
-    docs/media/verdict_digital_art.png
   Снимай с ТЕКУЩЕГО интерфейса (uvicorn server:app), не со старого Streamlit.
 -->
 
-| ✅ REAL_PHOTO | 🤖 AI_GENERATED |
-| :---: | :---: |
-| <img src="docs/media/verdict_real.png" width="420px" alt="Verdict: real photo" /> | <img src="docs/media/verdict_ai.png" width="420px" alt="Verdict: AI generated" /> |
-| живое фото, лучше со сложным светом/бликами — чтобы заодно показать gating | уверенная детекция генерации Midjourney / SDXL / Flux |
-
-| 🧩 LOCAL_SPLICE | 🖼️ DIGITAL_ART |
-| :---: | :---: |
-| <img src="docs/media/verdict_splice.png" width="420px" alt="Verdict: local splice" /> | <img src="docs/media/verdict_digital_art.png" width="420px" alt="Verdict: digital art, prefiltered" /> |
-| локальный инпейнтинг/face-swap — высокий local_prob при низком global_prob | 3D-рендер/иллюстрация, отсечённая Content Prefilter'ом до основного анализа |
+| Вердикт | Скриншот | Что снимать |
+| :---: | :---: | :--- |
+| ✅ **REAL_PHOTO** | <img src="docs/media/verdict_real.png" width="520px" alt="Verdict: real photo" /> | живое фото, лучше со сложным светом/бликами — чтобы заодно показать gating |
+| 🤖 **AI_GENERATED** | <img src="docs/media/verdict_ai.png" width="520px" alt="Verdict: AI generated" /> | уверенная детекция генерации Midjourney / SDXL / Flux |
+| 🧩 **LOCAL_SPLICE** | <img src="docs/media/verdict_splice.png" width="520px" alt="Verdict: local splice" /> | локальный инпейнтинг/face-swap — высокий local_prob при низком global_prob |
 
 ---
 

@@ -22,7 +22,6 @@
             --accent-orange-hover: #ff451a;
             --ai-red: #ff334b;
             --real-green: #00e599;
-            --art-purple: #c084fc;
         }
 
         * {
@@ -326,7 +325,6 @@
         .verdict-AI_GENERATED { color: var(--ai-red); }
         .verdict-REAL_PHOTO { color: var(--real-green); }
         .verdict-LOCAL_SPLICE { color: var(--accent-orange); }
-        .verdict-DIGITAL_ART { color: var(--art-purple); }
 
         .score-bar-container {
             width: 100%;
@@ -882,10 +880,9 @@
         }
 
         const VERDICT_MAP = {
-            'AI_GENERATED': { text: 'AI Generated', desc: 'Обнаружены структурные диффузионные паттерны генеративных сетей.' },
+            'AI_GENERATED': { text: 'AI Generated', desc: 'Обнаружены структурные диффузионные паттерны или признаки синтетического рендеринга.' },
             'REAL_PHOTO': { text: 'Authentic Photo', desc: 'Присутствуют естественные шумы матрицы и физически корректный спектр.' },
-            'LOCAL_SPLICE': { text: 'Local Inpainting', desc: 'Обнаружена локализованная генеративная врезка на снимке.' },
-            'DIGITAL_ART': { text: 'Digital Art / 3D', desc: 'Изображение классифицировано как цифровая графика или рендер.' }
+            'LOCAL_SPLICE': { text: 'Local Inpainting', desc: 'Обнаружена локализованная генеративная врезка на снимке.' }
         };
 
         function updateExpertBadge(badgeId, cardId, prob, contribution) {

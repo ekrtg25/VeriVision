@@ -22,7 +22,6 @@ from fastapi import FastAPI, File, Request, UploadFile, status
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 
-# Регистрация поддержки HEIC/HEIF через Pillow
 pillow_heif.register_heif_opener()
 
 ROOT_DIR = Path(__file__).resolve().parent
@@ -36,12 +35,10 @@ templates = Jinja2Templates(directory="templates")
 
 detector = VeriVisionEnsemble(models_dir="models")
 
-# Разрешенные расширения и ограничения
 SUPPORTED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp", ".heic", ".heif"}
-MAX_FILE_SIZE_BYTES = 25 * 1024 * 1024  # 25 MB
+MAX_FILE_SIZE_BYTES = 25 * 1024 * 1024
 
 
-# --- СХЕМЫ ДАННЫХ ---
 class ExpertBreakdown(BaseModel):
     name: str
     verdict_text: str
@@ -58,7 +55,6 @@ class DeepAnalysisResponse(BaseModel):
     experts: List[ExpertBreakdown]
 
 
-# --- ВАЛИДАЦИЯ ВХОДНЫХ ФАЙЛОВ ---
 def validate_and_load_image(file: UploadFile, image_bytes: bytes) -> Image.Image:
     filename = file.filename or ""
     file_ext = Path(filename).suffix.lower()
@@ -84,7 +80,6 @@ def validate_and_load_image(file: UploadFile, image_bytes: bytes) -> Image.Image
         raise ValueError(f"Не удалось прочитать изображение или файл поврежден: {str(err)}")
 
 
-# --- УТИЛИТЫ ВИЗУАЛИЗАЦИИ ---
 def generate_forensic_heatmaps(img: Image.Image) -> dict:
     buf_orig = io.BytesIO()
     img.save(buf_orig, "JPEG", quality=90)
@@ -158,7 +153,6 @@ def get_expert_verbalization(expert: str, prob: float, contribution: float) -> s
     return "Характерный паттерн обнаружен."
 
 
-# --- ЭНДПОИНТЫ API ---
 @app.get("/", response_class=HTMLResponse)
 async def index_view(request: Request):
     return templates.TemplateResponse(request=request, name="index.html")
@@ -216,23 +210,6 @@ async def deep_analysis_api(file: UploadFile = File(...)):
 
     cv_image = np.asarray(image.resize((512, 512)))
     fusion_result = detector.analyze(image)
-
-    if fusion_result["verdict"] == "DIGITAL_ART":
-        return DeepAnalysisResponse(
-            ai_probability=1.0,
-            confidence_band="VERY_HIGH",
-            verdict="DIGITAL_ART",
-            experts=[
-                ExpertBreakdown(
-                    name="CLIP",
-                    verdict_text="Однозначный 3D рендер / цифровая иллюстрация.",
-                    probability=1.0,
-                    contribution_percent=100.0,
-                    direction="AI",
-                    heatmap_b64=None,
-                )
-            ],
-        )
 
     metrics = fusion_result.get("metrics", {})
     contributions = metrics.get("contributions", {})
