@@ -28,13 +28,30 @@
     docs/media/verdict_ai.png
     docs/media/verdict_splice.png
   Снимай с ТЕКУЩЕГО интерфейса (uvicorn server:app), не со старого Streamlit.
+  Скриншоты — это full-page капчи UI, поэтому даём им идти на всю ширину,
+  а не сжимаем в узкую колонку таблицы.
 -->
 
-| Вердикт | Скриншот | Что снимать |
-| :---: | :---: | :--- |
-| ✅ **REAL_PHOTO** | <img src="docs/media/verdict_real.png" width="520px" alt="Verdict: real photo" /> | живое фото, лучше со сложным светом/бликами — чтобы заодно показать gating |
-| 🤖 **AI_GENERATED** | <img src="docs/media/verdict_ai.png" width="520px" alt="Verdict: AI generated" /> | уверенная детекция генерации Midjourney / SDXL / Flux |
-| 🧩 **LOCAL_SPLICE** | <img src="docs/media/verdict_splice.png" width="520px" alt="Verdict: local splice" /> | локальный инпейнтинг/face-swap — высокий local_prob при низком global_prob |
+#### ✅ REAL_PHOTO
+Живое фото, лучше со сложным светом/бликами — чтобы заодно показать gating.
+
+<p align="center">
+  <img src="docs/media/verdict_real.png" width="900px" alt="Verdict: real photo" />
+</p>
+
+#### 🤖 AI_GENERATED
+Уверенная детекция генерации Midjourney / SDXL / Flux.
+
+<p align="center">
+  <img src="docs/media/verdict_ai.png" width="900px" alt="Verdict: AI generated" />
+</p>
+
+#### 🧩 LOCAL_SPLICE
+Локальный инпейнтинг/face-swap — высокий `local_prob` при низком `global_prob`.
+
+<p align="center">
+  <img src="docs/media/verdict_splice.png" width="900px" alt="Verdict: local splice" />
+</p>
 
 ---
 
