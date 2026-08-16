@@ -1,121 +1,147 @@
 """
-Training script for DINOv2 Student Model.
-Multi-task loss:
-- Soft BCE for Verdict (distillation from teacher)
-- Focal Loss for Multi-label Categories
-- Pixel/Patch-level BCE for Spatial Localization Heatmap
+Direct DINOv2 Classifier & Attention Visualizer Training.
+Trains directly on data/robust_v1/real and fake folders.
 """
 
-import json
-import numpy as np
+import os
+import glob
+import math
+from pathlib import Path
 from PIL import Image
+import numpy as np
+
 import torch
 import torch.nn as nn
 from torch.utils.data import Dataset, DataLoader
 import torchvision.transforms as T
-import albumentations as A
-from albumentations.pytorch import ToTensorV2
-from src.models.perceptual_student import PerceptualStudentDetector, CATEGORIES
+from transformers import Dinov2Model, Dinov2Config
+from tqdm import tqdm
 
 
-class DistillationDataset(Dataset):
-    def __init__(self, json_path: str, img_size: int = 518):
-        with open(json_path, "r", encoding="utf-8") as f:
-            self.data = json.load(f)
+class DirectImageDataset(Dataset):
+    def __init__(self, data_dir: str = "data/robust_v1", img_size: int = 518):
         self.img_size = img_size
-        self.cat_to_idx = {c: i for i, c in enumerate(CATEGORIES)}
-        self.grid_size = img_size // 14
+        self.samples = []
+        
+        reals = glob.glob(f"{data_dir}/real/*.*")
+        fakes = glob.glob(f"{data_dir}/fake/*.*")
+        
+        for p in reals:
+            self.samples.append((p, 0.0))
+        for p in fakes:
+            self.samples.append((p, 1.0))
+            
+        print(f"[+] Датасет собран: {len(reals)} real, {len(fakes)} fake (Всего: {len(self.samples)})")
 
         self.transform = T.Compose([
             T.Resize((img_size, img_size)),
+            T.RandomHorizontalFlip(p=0.5),
             T.ToTensor(),
             T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
         ])
 
     def __len__(self):
-        return len(self.data)
+        return len(self.samples)
 
     def __getitem__(self, idx):
-        item = self.data[idx]
-        img = Image.open(item["image_path"]).convert("RGB")
-        pixel_values = self.transform(img)
-
-        soft_label = torch.tensor(item["soft_label"], dtype=torch.float32)
-
-        # Категории
-        cat_vec = torch.zeros(len(CATEGORIES), dtype=torch.float32)
-        # Маска локализации
-        mask = np.zeros((self.grid_size, self.grid_size), dtype=np.float32)
-
-        for art in item.get("artifacts", []):
-            if art["category"] in self.cat_to_idx:
-                cat_vec[self.cat_to_idx[art["category"]]] = 1.0
-
-            bbox = art["bbox_normalized"] # [ymin, xmin, ymax, xmax]
-            y1 = int(np.clip(bbox[0] * self.grid_size, 0, self.grid_size - 1))
-            x1 = int(np.clip(bbox[1] * self.grid_size, 0, self.grid_size - 1))
-            y2 = int(np.clip(bbox[2] * self.grid_size, 0, self.grid_size))
-            x2 = int(np.clip(bbox[3] * self.grid_size, 0, self.grid_size))
-            mask[y1:max(y1+1, y2), x1:max(x1+1, x2)] = 1.0
-
-        return {
-            "pixel_values": pixel_values,
-            "soft_label": soft_label,
-            "category_vec": cat_vec,
-            "loc_mask": torch.tensor(mask, dtype=torch.float32).unsqueeze(0)
-        }
+        path, label = self.samples[idx]
+        img = Image.open(path).convert("RGB")
+        return self.transform(img), torch.tensor(label, dtype=torch.float32)
 
 
-def train_student():
+class DirectDINOv2Detector(nn.Module):
+    def __init__(self, pretrained: bool = True):
+        super().__init__()
+        if pretrained:
+            self.backbone = Dinov2Model.from_pretrained("facebook/dinov2-base")
+        else:
+            config = Dinov2Config.from_pretrained("facebook/dinov2-base")
+            self.backbone = Dinov2Model(config)
+            
+        hidden_dim = self.backbone.config.hidden_size # 768
+
+        # Детектор на CLS-токене
+        self.classifier = nn.Sequential(
+            nn.Linear(hidden_dim, 256),
+            nn.LayerNorm(256),
+            nn.GELU(),
+            nn.Dropout(0.3),
+            nn.Linear(256, 1)
+        )
+        
+        # Patch-anomaly head
+        self.patch_anomaly = nn.Sequential(
+            nn.Linear(hidden_dim, 64),
+            nn.GELU(),
+            nn.Linear(64, 1)
+        )
+
+    def forward(self, pixel_values: torch.Tensor):
+        outputs = self.backbone(pixel_values=pixel_values)
+        cls_token = outputs.last_hidden_state[:, 0, :]
+        patch_tokens = outputs.last_hidden_state[:, 1:, :]
+
+        logits = self.classifier(cls_token).squeeze(-1)
+        patch_scores = self.patch_anomaly(patch_tokens)
+        
+        B, N, _ = patch_scores.shape
+        grid = int(math.sqrt(N))
+        loc_map = patch_scores.permute(0, 2, 1).view(B, 1, grid, grid)
+
+        return {"logits": logits, "loc_map": loc_map}
+
+
+def train():
     device = torch.device("mps" if torch.backends.mps.is_available() else ("cuda" if torch.cuda.is_available() else "cpu"))
     print(f"[+] Обучение на устройстве: {device}")
 
-    dataset = DistillationDataset("data/distillation_dataset.json", img_size=518)
-    loader = DataLoader(dataset, batch_size=8, shuffle=True)
+    dataset = DirectImageDataset(data_dir="data/robust_v1", img_size=518)
+    loader = DataLoader(dataset, batch_size=8, shuffle=True, drop_last=True)
 
-    model = PerceptualStudentDetector(pretrained_backbone=True).to(device)
-
-    # Дифференциальный Learning Rate: Backbone обучается тоньше, головы быстрее
+    model = DirectDINOv2Detector(pretrained=True).to(device)
+    
+    # Замораживаем первые слои DINOv2 для стабильности, тюним последние блоки и головы
+    for param in model.backbone.embeddings.parameters():
+        param.requires_grad = False
+        
     optimizer = torch.optim.AdamW([
-        {"params": model.backbone.parameters(), "lr": 1e-5, "weight_decay": 0.01},
-        {"params": model.verdict_head.parameters(), "lr": 1e-4},
-        {"params": model.category_head.parameters(), "lr": 1e-4},
-        {"params": model.loc_head.parameters(), "lr": 1e-4}
-    ])
+        {"params": model.backbone.encoder.layer[-4:].parameters(), "lr": 2e-5},
+        {"params": model.classifier.parameters(), "lr": 1e-4},
+        {"params": model.patch_anomaly.parameters(), "lr": 1e-4}
+    ], weight_decay=0.01)
 
-    bce_soft = nn.BCEWithLogitsLoss()
-    bce_cat = nn.BCEWithLogitsLoss()
-    bce_loc = nn.BCEWithLogitsLoss()
-
+    criterion = nn.BCEWithLogitsLoss()
+    epochs = 4
+    
+    Path("models").mkdir(exist_ok=True)
     model.train()
-    epochs = 5
 
+    print("\n--- СТАРТ ОБУЧЕНИЯ DINOv2 ---")
     for epoch in range(epochs):
         total_loss = 0.0
-        for batch in loader:
-            imgs = batch["pixel_values"].to(device)
-            soft_labels = batch["soft_label"].to(device)
-            cat_targets = batch["category_vec"].to(device)
-            loc_targets = batch["loc_mask"].to(device)
+        correct = 0
+        total = 0
+
+        pbar = tqdm(loader, desc=f"Epoch {epoch+1}/{epochs}")
+        for imgs, labels in pbar:
+            imgs, labels = imgs.to(device), labels.to(device)
 
             optimizer.zero_grad()
-            preds = model(imgs)
-
-            l_verdict = bce_soft(preds["verdict_logits"], soft_labels)
-            l_cat = bce_cat(preds["category_logits"], cat_targets)
-            l_loc = bce_loc(preds["loc_map"], loc_targets)
-
-            loss = l_verdict + 0.5 * l_cat + 0.5 * l_loc
+            out = model(imgs)
+            loss = criterion(out["logits"], labels)
             loss.backward()
             optimizer.step()
 
             total_loss += loss.item()
+            preds = (torch.sigmoid(out["logits"]) >= 0.5).float()
+            correct += (preds == labels).sum().item()
+            total += labels.size(0)
 
-        print(f"Epoch [{epoch+1}/{epochs}] — Loss: {total_loss / len(loader):.4f}")
+            pbar.set_postfix({"loss": f"{total_loss/len(loader):.4f}", "acc": f"{correct/total:.2%}"})
 
     torch.save(model.state_dict(), "models/perceptual_student.pth")
-    print("[✓] Веса модели сохранены в models/perceptual_student.pth")
+    print(f"\n[✓] Модель успешно обучена и сохранена в models/perceptual_student.pth")
 
 
 if __name__ == "__main__":
-    train_student()
+    train()
