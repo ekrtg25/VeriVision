@@ -3,447 +3,824 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VeriVision MoE v3.5</title>
+    <title>VeriVision — Neural & Spectral Forensics</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
     <style>
         :root {
-            --bg: #0b0f19;
-            --surface: #131b2e;
-            --surface-card: #0f1626;
-            --border: #232f48;
-            --accent: #3b82f6;
-            --accent-hover: #2563eb;
-            --text-main: #f3f4f6;
-            --text-muted: #9ca3af;
-            --danger: #ef4444;
-            --success: #10b981;
-            --warning: #f59e0b;
-            --purple: #a855f7;
+            --bg: #090a0c;
+            --bg-subtle: #0f1013;
+            --card-bg: rgba(22, 24, 29, 0.75);
+            --card-bg-hover: rgba(30, 33, 40, 0.85);
+            --border-grid: rgba(255, 255, 255, 0.07);
+            --border-card: rgba(255, 255, 255, 0.12);
+            --text-main: #f4f5f7;
+            --text-muted: #8b929e;
+            --text-subtle: #525866;
+            --accent-orange: #ff5e3a;
+            --accent-orange-hover: #ff451a;
+            --ai-red: #ff334b;
+            --real-green: #00e599;
+            --art-purple: #c084fc;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
         }
 
         body {
-            margin: 0;
-            padding: 0;
             background-color: var(--bg);
             color: var(--text-main);
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            font-family: 'Plus Jakarta Sans', -apple-system, sans-serif;
+            min-height: 100vh;
             display: flex;
             flex-direction: column;
-            align-items: center;
-            min-height: 100vh;
+            overflow-x: hidden;
+            position: relative;
+        }
+
+        .ambient-glow {
+            position: fixed;
+            top: -20%;
+            left: -10%;
+            width: 50vw;
+            height: 50vh;
+            background: radial-gradient(circle, rgba(74, 114, 184, 0.18) 0%, rgba(0,0,0,0) 70%);
+            filter: blur(80px);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .ambient-glow-bottom {
+            position: fixed;
+            bottom: -20%;
+            right: -10%;
+            width: 60vw;
+            height: 60vh;
+            background: radial-gradient(circle, rgba(56, 120, 160, 0.12) 0%, rgba(0,0,0,0) 70%);
+            filter: blur(100px);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .grid-lines {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: space-between;
+            pointer-events: none;
+            z-index: 1;
+            padding: 0 40px;
+        }
+
+        .grid-line {
+            width: 1px;
+            height: 100%;
+            background: var(--border-grid);
         }
 
         header {
-            width: 100%;
-            padding: 16px 40px;
+            position: relative;
+            z-index: 10;
             display: flex;
             align-items: center;
             justify-content: space-between;
-            border-bottom: 1px solid var(--border);
-            background: rgba(19, 27, 46, 0.7);
-            backdrop-filter: blur(10px);
-            box-sizing: border-box;
-            position: sticky;
-            top: 0;
-            z-index: 10;
+            padding: 24px 48px;
+            border-bottom: 1px solid var(--border-grid);
+            backdrop-filter: blur(16px);
+            background: rgba(9, 10, 12, 0.6);
         }
 
-        .badge {
-            background: #1e293b;
-            color: #60a5fa;
-            font-size: 0.75rem;
-            padding: 4px 10px;
-            border-radius: 999px;
-            border: 1px solid #3b82f640;
-            font-weight: 600;
-        }
-
-        .container {
-            max-width: 860px;
-            width: 92%;
-            margin: 32px 0 60px 0;
-            display: flex;
-            flex-direction: column;
-            gap: 24px;
-        }
-
-        .info-section {
-            background: var(--surface);
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            padding: 20px 24px;
-        }
-
-        .info-title {
-            font-size: 1rem;
-            font-weight: 700;
-            margin-bottom: 16px;
+        .logo-group {
             display: flex;
             align-items: center;
-            gap: 8px;
-            color: #93c5fd;
-        }
-
-        .steps-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
             gap: 12px;
         }
 
-        .step-card {
-            background: var(--surface-card);
-            border: 1px solid #1c263c;
-            border-radius: 8px;
-            padding: 12px;
+        .logo-icon {
+            width: 18px;
+            height: 18px;
+            background: var(--text-main);
+            clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
         }
 
-        .step-icon {
-            font-size: 1.2rem;
-            margin-bottom: 6px;
+        .logo-title {
+            font-size: 0.95rem;
+            font-weight: 700;
+            letter-spacing: -0.02em;
         }
 
-        .step-name {
+        .nav-links {
+            display: flex;
+            align-items: center;
+            gap: 28px;
+            font-size: 0.78rem;
             font-weight: 600;
-            font-size: 0.85rem;
-            margin-bottom: 4px;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
         }
 
-        .step-desc {
+        .nav-link {
+            color: var(--text-muted);
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+
+        .nav-link.active, .nav-link:hover {
+            color: var(--text-main);
+        }
+
+        .nav-counter {
+            color: var(--accent-orange);
+            font-size: 0.7rem;
+            margin-left: 2px;
+        }
+
+        .cta-btn {
+            background: var(--accent-orange);
+            color: #fff;
+            border: none;
+            padding: 10px 18px;
+            font-size: 0.72rem;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .cta-btn:hover {
+            background: var(--accent-orange-hover);
+        }
+
+        main {
+            position: relative;
+            z-index: 5;
+            max-width: 1400px;
+            width: 100%;
+            margin: 0 auto;
+            padding: 48px 48px 64px 48px;
+            display: flex;
+            flex-direction: column;
+            gap: 48px;
+            flex-grow: 1;
+        }
+
+        .hero-section {
+            display: grid;
+            grid-template-columns: 1.2fr 0.8fr;
+            gap: 40px;
+            align-items: flex-end;
+        }
+
+        .hero-tag {
+            font-family: 'JetBrains Mono', monospace;
             font-size: 0.75rem;
             color: var(--text-muted);
-            line-height: 1.3;
+            letter-spacing: 0.05em;
+            margin-bottom: 12px;
+            text-transform: uppercase;
         }
 
-        .upload-card {
-            border: 2px dashed var(--border);
-            border-radius: 12px;
-            padding: 36px 20px;
-            text-align: center;
-            background: var(--surface);
+        .hero-title {
+            font-size: 2.8rem;
+            font-weight: 400;
+            line-height: 1.1;
+            letter-spacing: -0.03em;
+            color: var(--text-main);
+        }
+
+        .hero-title strong {
+            font-weight: 700;
+            display: block;
+        }
+
+        .hero-desc {
+            font-size: 0.95rem;
+            line-height: 1.55;
+            color: var(--text-muted);
+            max-width: 420px;
+            margin-left: auto;
+        }
+
+        .upload-wrapper {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            align-items: stretch;
+        }
+
+        .drop-area {
+            background: var(--card-bg);
+            border: 1px dashed var(--border-card);
+            border-radius: 20px;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 14px;
             cursor: pointer;
-            transition: border-color 0.2s, background 0.2s;
+            backdrop-filter: blur(20px);
+            transition: all 0.25s ease;
+            min-height: 280px;
+            position: relative;
         }
 
-        .upload-card.dragover {
-            border-color: var(--accent);
-            background: #17223b;
+        .drop-area.dragover, .drop-area:hover {
+            background: var(--card-bg-hover);
+            border-color: var(--accent-orange);
         }
 
-        .upload-card:hover {
-            border-color: var(--accent);
-            background: #17223b;
+        .preview-img {
+            max-width: 100%;
+            max-height: 220px;
+            border-radius: 12px;
+            object-fit: contain;
+            display: none;
+        }
+
+        .drop-placeholder-box {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .drop-icon {
+            font-size: 2rem;
+            opacity: 0.8;
+        }
+
+        .drop-text-main {
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: var(--text-main);
+            text-align: center;
+        }
+
+        .drop-text-sub {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            font-family: 'JetBrains Mono', monospace;
+            text-align: center;
         }
 
         #fileInput {
             display: none;
         }
 
-        .preview-img {
-            max-width: 100%;
-            max-height: 320px;
-            border-radius: 8px;
-            display: none;
-            margin: 0 auto 16px auto;
-            object-fit: contain;
+        .status-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border-card);
+            border-radius: 20px;
+            padding: 32px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            backdrop-filter: blur(20px);
+            position: relative;
+            min-height: 280px;
         }
 
-        .btn {
-            background: var(--accent);
-            color: #fff;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 8px;
-            font-weight: 600;
-            font-size: 0.9rem;
-            cursor: pointer;
-            transition: background 0.2s, border-color 0.2s;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-        }
-
-        .btn:hover {
-            background: var(--accent-hover);
-        }
-
-        .btn-secondary {
-            background: #1f293d;
-            border: 1px solid var(--border);
-            color: var(--text-main);
-        }
-
-        .btn-secondary:hover {
-            background: #27354f;
-            border-color: #3b82f680;
-        }
-
-        .result-box {
-            display: none;
-            background: var(--surface);
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            padding: 24px;
-        }
-
-        .status-header {
+        .status-meta {
             display: flex;
             align-items: center;
             justify-content: space-between;
-            font-size: 1.25rem;
+        }
+
+        .status-badge {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.7rem;
+            padding: 4px 10px;
+            border-radius: 4px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border-card);
+            color: var(--text-muted);
+        }
+
+        .verdict-header {
+            margin: 20px 0;
+        }
+
+        .verdict-title {
+            font-size: 1.8rem;
             font-weight: 700;
+            letter-spacing: -0.02em;
             margin-bottom: 8px;
         }
 
-        .status-AI_GENERATED { color: var(--danger); }
-        .status-REAL_PHOTO { color: var(--success); }
-        .status-DIGITAL_ART { color: var(--purple); }
-        .status-LOCAL_SPLICE { color: var(--warning); }
-
-        .band-badge {
-            font-size: 0.78rem;
-            padding: 4px 10px;
-            border-radius: 6px;
-            background: #1e293b;
-            color: var(--text-muted);
-            border: 1px solid var(--border);
-            font-weight: 600;
-        }
-
-        .metrics-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 10px;
-            margin-top: 16px;
-            padding-top: 16px;
-            border-top: 1px solid var(--border);
+        .verdict-desc {
             font-size: 0.85rem;
-        }
-
-        .metric-item {
-            display: flex;
-            justify-content: space-between;
-            background: var(--surface-card);
-            padding: 10px 14px;
-            border-radius: 6px;
-            border: 1px solid #1c263c;
-        }
-
-        .metric-item span {
             color: var(--text-muted);
+            line-height: 1.4;
         }
 
-        .deep-section {
-            display: none;
-            margin-top: 20px;
-            padding-top: 20px;
-            border-top: 1px solid var(--border);
-        }
+        .verdict-AI_GENERATED { color: var(--ai-red); }
+        .verdict-REAL_PHOTO { color: var(--real-green); }
+        .verdict-LOCAL_SPLICE { color: var(--accent-orange); }
+        .verdict-DIGITAL_ART { color: var(--art-purple); }
 
-        .experts-list {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-            margin-top: 12px;
-        }
-
-        .expert-card {
-            background: var(--surface-card);
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            padding: 14px;
-        }
-
-        .expert-head {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            font-size: 0.88rem;
-            font-weight: 600;
-        }
-
-        .dir-AI { color: var(--danger); font-weight: 700; }
-        .dir-REAL { color: var(--success); font-weight: 700; }
-        .dir-NEUTRAL { color: var(--text-muted); }
-
-        .expert-desc {
-            font-size: 0.8rem;
-            color: #d1d5db;
-            margin-top: 6px;
-            line-height: 1.35;
-        }
-
-        .overlay-preview {
+        .score-bar-container {
             width: 100%;
-            max-height: 260px;
-            object-fit: contain;
-            border-radius: 6px;
-            margin-top: 10px;
-            background: #000;
-            border: 1px solid var(--border);
-        }
-
-        .heatmaps-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 12px;
+            height: 6px;
+            background: rgba(255, 255, 255, 0.08);
+            border-radius: 999px;
+            overflow: hidden;
             margin-top: 14px;
         }
 
-        .heatmap-box {
-            background: var(--surface-card);
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            padding: 12px;
-            text-align: center;
+        .score-bar-fill {
+            height: 100%;
+            width: 0%;
+            background: var(--text-muted);
+            transition: width 0.6s cubic-bezier(0.16, 1, 0.3, 1), background 0.3s;
         }
 
-        .heatmap-box img {
+        .cards-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 20px;
+        }
+
+        .expert-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border-card);
+            border-radius: 24px;
+            padding: 22px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            backdrop-filter: blur(20px);
+            position: relative;
+            transition: transform 0.25s, border-color 0.25s;
+        }
+
+        .expert-card:hover {
+            transform: translateY(-4px);
+            border-color: rgba(255, 255, 255, 0.25);
+        }
+
+        .expert-card.disabled {
+            opacity: 0.55;
+            border-style: dashed;
+        }
+
+        .card-preview-area {
             width: 100%;
             height: 180px;
-            object-fit: contain;
-            border-radius: 6px;
-            background: #000;
-            margin-top: 8px;
-            border: 1px solid #1c263c;
+            border-radius: 16px;
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            position: relative;
         }
 
-        .loader {
+        .card-preview-area img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .card-placeholder {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.65rem;
+            color: var(--text-subtle);
+            text-transform: uppercase;
+            text-align: center;
+            padding: 12px;
+        }
+
+        .card-info {
+            margin-top: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .card-meta-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .card-index {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+
+        .card-status-badge {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.68rem;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-weight: 600;
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid var(--border-card);
+        }
+
+        .badge-ai { color: var(--ai-red); border-color: rgba(255, 51, 75, 0.3); }
+        .badge-real { color: var(--real-green); border-color: rgba(0, 229, 153, 0.3); }
+        .badge-disabled { color: var(--text-subtle); border-color: var(--border-grid); }
+
+        .card-name {
+            font-size: 0.95rem;
+            font-weight: 700;
+            letter-spacing: -0.01em;
+        }
+
+        .card-section-label {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.65rem;
+            color: var(--text-subtle);
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            margin-top: 4px;
+        }
+
+        .card-purpose {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            line-height: 1.35;
+        }
+
+        .card-verdict-box {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 8px;
+            padding: 8px 10px;
+            font-size: 0.74rem;
+            line-height: 1.3;
+            color: #d1d5db;
+            border-left: 2px solid var(--text-subtle);
+            min-height: 48px;
+            display: flex;
+            align-items: center;
+        }
+
+        .project-details-section {
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+            margin-top: 20px;
+            border-top: 1px solid var(--border-grid);
+            padding-top: 48px;
+        }
+
+        .section-header-row {
+            display: flex;
+            align-items: flex-end;
+            justify-content: space-between;
+            gap: 20px;
+        }
+
+        .bento-grid {
+            display: grid;
+            grid-template-columns: 1.2fr 0.8fr 1fr;
+            gap: 20px;
+        }
+
+        .bento-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border-card);
+            border-radius: 20px;
+            padding: 28px;
+            backdrop-filter: blur(20px);
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            gap: 16px;
+        }
+
+        .bento-tag {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.7rem;
+            color: var(--accent-orange);
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+        }
+
+        .bento-title {
+            font-size: 1.15rem;
+            font-weight: 700;
+            letter-spacing: -0.01em;
+            color: var(--text-main);
+        }
+
+        .bento-text {
+            font-size: 0.82rem;
+            color: var(--text-muted);
+            line-height: 1.5;
+        }
+
+        .tech-pills {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-top: 8px;
+        }
+
+        .tech-pill {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.68rem;
+            padding: 4px 8px;
+            border-radius: 4px;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid var(--border-grid);
+            color: var(--text-main);
+        }
+
+        footer {
+            position: relative;
+            z-index: 10;
+            padding: 24px 48px;
+            border-top: 1px solid var(--border-grid);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 0.72rem;
+            color: var(--text-subtle);
+            font-family: 'JetBrains Mono', monospace;
+            text-transform: uppercase;
+        }
+
+        .spinner {
             display: none;
-            margin: 20px auto;
-            border: 3px solid #232f48;
-            border-top: 3px solid var(--accent);
+            width: 24px;
+            height: 24px;
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            border-top: 2px solid var(--accent-orange);
             border-radius: 50%;
-            width: 34px;
-            height: 34px;
-            animation: spin 0.8s linear infinite;
+            animation: spin 0.7s linear infinite;
         }
 
         @keyframes spin {
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
+
+        @media (max-width: 1024px) {
+            .hero-section { grid-template-columns: 1fr; }
+            .upload-wrapper { grid-template-columns: 1fr; }
+            .cards-grid { grid-template-columns: repeat(2, 1fr); }
+            .bento-grid { grid-template-columns: 1fr; }
+            .grid-lines { display: none; }
+        }
+
+        @media (max-width: 640px) {
+            .cards-grid { grid-template-columns: 1fr; }
+            header { padding: 16px 20px; }
+            main { padding: 24px 20px; }
+            .hero-title { font-size: 2rem; }
+        }
     </style>
 </head>
 <body>
 
+    <div class="ambient-glow"></div>
+    <div class="ambient-glow-bottom"></div>
+
+    <div class="grid-lines">
+        <div class="grid-line"></div>
+        <div class="grid-line"></div>
+        <div class="grid-line"></div>
+        <div class="grid-line"></div>
+        <div class="grid-line"></div>
+    </div>
+
     <header>
-        <div style="display: flex; align-items: center; gap: 10px;">
-            <span style="font-size: 1.3rem; font-weight: 800;">👁️ VeriVision</span>
-            <span class="badge">MoE v3.5</span>
+        <div class="logo-group">
+            <div class="logo-icon"></div>
+            <span class="logo-title">VeriVision</span>
         </div>
+        <nav class="nav-links">
+            <a href="#" class="nav-link active">Forensics</a>
+            <a href="#about-project" class="nav-link">Architecture & Methodology <span class="nav-counter">[MoE v3.5]</span></a>
+        </nav>
+        <button class="cta-btn" onclick="document.getElementById('fileInput').click()">Select Image</button>
     </header>
 
-    <div class="container">
-        <!-- КАК ЭТО РАБОТАЕТ -->
-        <section class="info-section">
-            <div class="info-title">
-                <span>⚙️ Архитектура анализа VeriVision MoE</span>
+    <main>
+        <section class="hero-section">
+            <div>
+                <div class="hero-tag">[Services // Forensic MoE v3.5]</div>
+                <h1 class="hero-title">
+                    Synthetic Media &
+                    <strong>Neural Authentication</strong>
+                </h1>
             </div>
-            <div class="steps-grid">
-                <div class="step-card">
-                    <div class="step-icon">🎨</div>
-                    <div class="step-name">1. Content Prefilter</div>
-                    <div class="step-desc">Zero-shot отсечение 3D-графики, иллюстраций и скриншотов до глубокого инференса.</div>
+            <div>
+                <p class="hero-desc">
+                    Многослойный анализ генеративных диффузионных следов, микроструктуры квантования и отпечатка кремниевого сенсора камеры.
+                </p>
+            </div>
+        </section>
+
+        <section class="upload-wrapper">
+            <div class="drop-area" id="dropZone" onclick="document.getElementById('fileInput').click()">
+                <img id="imagePreview" class="preview-img" alt="Original Preview">
+                <div class="drop-placeholder-box" id="dropPlaceholder">
+                    <div class="drop-icon">✧</div>
+                    <div class="drop-text-main" id="dropTextMain">Загрузите или перетащите изображение</div>
+                    <div class="drop-text-sub">JPG, PNG, WEBP, HEIC // MAX 25MB</div>
                 </div>
-                <div class="step-card">
-                    <div class="step-icon">🧠</div>
-                    <div class="step-name">2. DINOv2 Fine-Tuned</div>
-                    <div class="step-desc">Детекция диффузионных следов через конкатенацию CLS-токена и dense-патчей (1536d).</div>
+                <div class="spinner" id="loaderSpinner"></div>
+                <input type="file" id="fileInput" accept=".jpg,.jpeg,.png,.webp,.heic,.heif,image/jpeg,image/png,image/webp,image/heic,image/heif" onchange="handleFileSelect(event)">
+            </div>
+
+            <div class="status-card" id="statusCard">
+                <div class="status-meta">
+                    <span class="status-badge" id="confidenceBand">BAND: STANDBY</span>
+                    <span class="status-badge" id="aiProbBadge">AI SCORE: —</span>
                 </div>
-                <div class="step-card">
-                    <div class="step-icon">🔬</div>
-                    <div class="step-name">3. PRNU + SRM Физика</div>
-                    <div class="step-desc">Проверка уникального отпечатка кремниевого сенсора камеры и остаточного шума.</div>
+
+                <div class="verdict-header">
+                    <div class="verdict-title" id="verdictTitle">Ожидание файла</div>
+                    <div class="verdict-desc" id="verdictDesc">Выберите изображение для запуска ансамбля нейросетей и форензик-анализаторов.</div>
                 </div>
-                <div class="step-card">
-                    <div class="step-icon">📊</div>
-                    <div class="step-name">4. ELA + 2D FFT & Gating</div>
-                    <div class="step-desc">Спектральные сетки генерации и динамическое подавление весов при сильном сжатии.</div>
+
+                <div>
+                    <div class="score-bar-container">
+                        <div class="score-bar-fill" id="scoreBarFill"></div>
+                    </div>
                 </div>
             </div>
         </section>
 
-        <!-- ЗАГРУЗКА -->
-        <div class="upload-card" id="dropZone" onclick="document.getElementById('fileInput').click()">
-            <img id="preview" class="preview-img" alt="Preview">
-            <p id="uploadText" style="margin: 0; color: var(--text-muted);">
-                Нажмите или перетащите изображение (JPG, PNG, WebP, HEIC)
-            </p>
-            <input type="file" id="fileInput" accept="image/*,.heic,.heif" onchange="handleFileSelect(event)">
-        </div>
-
-        <div class="loader" id="loader"></div>
-
-        <!-- РЕЗУЛЬТАТ -->
-        <div class="result-box" id="resultBox">
-            <div class="status-header">
-                <span id="verdictLabel">...</span>
-                <div style="display: flex; align-items: center; gap: 8px;">
-                    <span id="bandBadge" class="band-badge"></span>
-                    <span id="scoreBadge" style="font-size: 1.1rem; font-weight: 700;"></span>
+        <section class="cards-grid">
+            <div class="expert-card" id="card_dino">
+                <div class="card-preview-area" id="preview_dino">
+                    <span class="card-placeholder">Карта внимания DINOv2</span>
                 </div>
-            </div>
-            
-            <p id="verdictDesc" style="color: var(--text-muted); font-size: 0.9rem; margin: 0 0 16px 0;"></p>
-
-            <button id="deepBtn" class="btn btn-secondary" style="width: 100%;" onclick="toggleDeepAnalysis()">
-                🔬 Развернуть глубокий форензик-анализ (XAI)
-            </button>
-
-            <!-- МЕТРИКИ -->
-            <div class="metrics-grid">
-                <div class="metric-item">
-                    <span>DINOv2 Perceptual:</span>
-                    <strong id="m_dino">-</strong>
-                </div>
-                <div class="metric-item">
-                    <span>Sensor PRNU:</span>
-                    <strong id="m_prnu">-</strong>
-                </div>
-                <div class="metric-item">
-                    <span>ELA Inconsistency:</span>
-                    <strong id="m_ela">-</strong>
-                </div>
-                <div class="metric-item">
-                    <span>Spectral 2D FFT:</span>
-                    <strong id="m_fft">-</strong>
-                </div>
-                <div class="metric-item">
-                    <span>SRM Residual:</span>
-                    <strong id="m_srm">-</strong>
-                </div>
-                <div class="metric-item">
-                    <span>JPEG Compression:</span>
-                    <strong id="m_comp">-</strong>
-                </div>
-            </div>
-
-            <!-- РАЗДЕЛ ГЛУБОКОГО АНАЛИЗА -->
-            <div class="deep-section" id="deepSection">
-                <div style="font-size: 0.95rem; font-weight: 700; color: #93c5fd;">
-                    Детализация решений экспертов ансамбля
-                </div>
-                <div class="experts-list" id="expertsList"></div>
-
-                <div class="heatmaps-grid">
-                    <div class="heatmap-box">
-                        <div style="font-size: 0.8rem; font-weight: 600;">Error Level Analysis (ELA)</div>
-                        <img id="elaImg" alt="ELA Map">
+                <div class="card-info">
+                    <div class="card-meta-row">
+                        <span class="card-index">/01</span>
+                        <span class="card-status-badge badge-disabled" id="badge_dino">STANDBY</span>
                     </div>
-                    <div class="heatmap-box">
-                        <div style="font-size: 0.8rem; font-weight: 600;">2D FFT Логарифмический Спектр</div>
-                        <img id="fftImg" alt="FFT Spectrum">
+                    <div class="card-name">DINOv2 Perceptual</div>
+                    
+                    <span class="card-section-label">Назначение модуля</span>
+                    <div class="card-purpose">Поиск артефактов диффузии на уровне патчей и смысловых аномалий сцены.</div>
+                    
+                    <span class="card-section-label">Вердикт эксперта</span>
+                    <div class="card-verdict-box" id="verdict_dino">Ожидание анализа...</div>
+                </div>
+            </div>
+
+            <div class="expert-card" id="card_ela">
+                <div class="card-preview-area" id="preview_ela">
+                    <span class="card-placeholder">Карта квантования ELA</span>
+                </div>
+                <div class="card-info">
+                    <div class="card-meta-row">
+                        <span class="card-index">/02</span>
+                        <span class="card-status-badge badge-disabled" id="badge_ela">STANDBY</span>
+                    </div>
+                    <div class="card-name">Error Level Analysis</div>
+                    
+                    <span class="card-section-label">Назначение модуля</span>
+                    <div class="card-purpose">Выявление разницы коэффициентов сжатия для поиска следов монтажа и Inpainting.</div>
+                    
+                    <span class="card-section-label">Вердикт эксперта</span>
+                    <div class="card-verdict-box" id="verdict_ela">Ожидание анализа...</div>
+                </div>
+            </div>
+
+            <div class="expert-card" id="card_fft">
+                <div class="card-preview-area" id="preview_fft">
+                    <span class="card-placeholder">2D FFT Спектрограмма</span>
+                </div>
+                <div class="card-info">
+                    <div class="card-meta-row">
+                        <span class="card-index">/03</span>
+                        <span class="card-status-badge badge-disabled" id="badge_fft">STANDBY</span>
+                    </div>
+                    <div class="card-name">Spectral 2D FFT</div>
+                    
+                    <span class="card-section-label">Назначение модуля</span>
+                    <div class="card-purpose">Поиск повторяющихся геометрических решеток и пиков от нейросетевых апскейлеров.</div>
+                    
+                    <span class="card-section-label">Вердикт эксперта</span>
+                    <div class="card-verdict-box" id="verdict_fft">Ожидание анализа...</div>
+                </div>
+            </div>
+
+            <div class="expert-card" id="card_prnu">
+                <div class="card-preview-area" id="preview_prnu">
+                    <span class="card-placeholder">Отпечаток матрицы (PRNU)</span>
+                </div>
+                <div class="card-info">
+                    <div class="card-meta-row">
+                        <span class="card-index">/04</span>
+                        <span class="card-status-badge badge-disabled" id="badge_prnu">STANDBY</span>
+                    </div>
+                    <div class="card-name">PRNU Sensor Trace</div>
+                    
+                    <span class="card-section-label">Назначение модуля</span>
+                    <div class="card-purpose">Проверка физического шума кремниевого сенсора камеры (Photo-Response Non-Uniformity).</div>
+                    
+                    <span class="card-section-label">Вердикт эксперта</span>
+                    <div class="card-verdict-box" id="verdict_prnu">Ожидание анализа...</div>
+                </div>
+            </div>
+        </section>
+
+        <section class="project-details-section" id="about-project">
+            <div class="section-header-row">
+                <div>
+                    <div class="hero-tag">[Project Overview // Methodology]</div>
+                    <h2 style="font-size: 1.8rem; font-weight: 700; letter-spacing: -0.02em;">
+                        Архитектура & Принципы работы VeriVision
+                    </h2>
+                </div>
+                <div style="font-family: 'JetBrains Mono', monospace; font-size: 0.72rem; color: var(--text-muted);">
+                    VERSION 3.5.0 // ROBUST MOE
+                </div>
+            </div>
+
+            <div class="bento-grid">
+                <div class="bento-card">
+                    <div>
+                        <div class="bento-tag">[01 // Perceptual Backbone]</div>
+                        <div class="bento-title" style="margin: 8px 0;">Fine-Tuned DINOv2 & Dense XAI</div>
+                        <div class="bento-text">
+                            Ядром детектора выступает модель <strong>DINOv2-Base (ViT-B/14)</strong> с частичной разморозкой верхних блоков внимания. Входной классификатор объединяет глобальный контекст <code>CLS</code> и усредненные патчи <code>Spatial Mean</code> (1536-мерное пространство). Реализована оценка каждого из 1369 патчей для построения 2D карт локализации артефактов без вычислительных накладных расходов.
+                        </div>
+                    </div>
+                    <div class="tech-pills">
+                        <span class="tech-pill">PyTorch</span>
+                        <span class="tech-pill">DINOv2 ViT-B/14</span>
+                        <span class="tech-pill">Dense Patch XAI</span>
+                        <span class="tech-pill">518×518 High-Res</span>
+                    </div>
+                </div>
+
+                <div class="bento-card">
+                    <div>
+                        <div class="bento-tag">[02 // Physical Forensics]</div>
+                        <div class="bento-title" style="margin: 8px 0;">Физический след сенсора & Спектр</div>
+                        <div class="bento-text">
+                            Помимо семантики, система анализирует физические свойства формирования кадра:
+                            <br><br>
+                            • <strong>PRNU:</strong> извлечение высокочастотного отпечатка кремниевой матрицы фотокамеры.<br>
+                            • <strong>ELA:</strong> выявление ступенчатых градиентов сжатия для детекции Inpainting.<br>
+                            • <strong>2D FFT:</strong> поиск дифракционных решеток и артефактов латентного VAE.
+                        </div>
+                    </div>
+                    <div class="tech-pills">
+                        <span class="tech-pill">Sensor PRNU</span>
+                        <span class="tech-pill">JPEG ELA</span>
+                        <span class="tech-pill">FFT 2D Spectrum</span>
+                        <span class="tech-pill">SRM Filters</span>
+                    </div>
+                </div>
+
+                <div class="bento-card">
+                    <div>
+                        <div class="bento-tag">[03 // Gating & Calibration]</div>
+                        <div class="bento-title" style="margin: 8px 0;">Dynamic Gating & Robust Fusion</div>
+                        <div class="bento-text">
+                            Главная проблема классической форензики — ложные срабатывания на сжатии мессенджеров (Telegram/WhatsApp). VeriVision использует алгоритм <strong>Dynamic Gating</strong>: при обнаружении сильной JPEG-компрессии система динамически снижает веса ELA/FFT, передавая приоритет инвариантному DINOv2 и защищая реальные фото от ложных обвинений.
+                        </div>
+                    </div>
+                    <div class="tech-pills">
+                        <span class="tech-pill">Dynamic Gating</span>
+                        <span class="tech-pill">Weight Capping</span>
+                        <span class="tech-pill">Platt Calibration</span>
+                        <span class="tech-pill">FastAPI Async</span>
                     </div>
                 </div>
             </div>
-        </div>
-    </div>
+        </section>
+    </main>
+
+    <footer>
+        <div>VeriVision Forensics Engine // Multi-Expert Architecture</div>
+        <div>Calibration Bank v3.5</div>
+    </footer>
 
     <script>
         let currentFile = null;
-        let isDeepOpen = false;
-
+        const ALLOWED_EXTS = ['.jpg', '.jpeg', '.png', '.webp', '.heic', '.heif'];
         const dropZone = document.getElementById('dropZone');
+
+        function isFileSupported(file) {
+            if (!file || !file.name) return false;
+            const parts = file.name.split('.');
+            if (parts.length < 2) return false;
+            const ext = '.' + parts.pop().toLowerCase();
+            return ALLOWED_EXTS.includes(ext);
+        }
 
         ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
             dropZone.addEventListener(eventName, preventDefaults, false);
@@ -463,54 +840,81 @@
             dropZone.addEventListener(eventName, () => dropZone.classList.remove('dragover'), false);
         });
 
-        dropZone.addEventListener('drop', handleDrop, false);
-
-        function handleDrop(e) {
-            const dt = e.dataTransfer;
-            const files = dt.files;
-            if (files.length > 0) {
-                processFile(files[0]);
-            }
-        }
+        dropZone.addEventListener('drop', (e) => {
+            const files = e.dataTransfer.files;
+            if (files.length > 0) processFile(files[0]);
+        });
 
         function handleFileSelect(event) {
             const file = event.target.files[0];
-            if (file) {
-                processFile(file);
-            }
+            if (file) processFile(file);
+            event.target.value = '';
         }
 
         function processFile(file) {
+            if (!isFileSupported(file)) {
+                const parts = file.name.split('.');
+                const ext = parts.length > 1 ? parts.pop() : 'неизвестный';
+                alert(`Формат .${ext} не поддерживается.\n\nРазрешенные форматы: ${ALLOWED_EXTS.join(', ')}`);
+                return;
+            }
+
             currentFile = file;
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                const preview = document.getElementById('preview');
-                preview.src = e.target.result;
-                preview.style.display = 'block';
-                document.getElementById('uploadText').style.display = 'none';
-                analyzeImage(file);
-            };
-            reader.readAsDataURL(file);
+            const ext = '.' + file.name.split('.').pop().toLowerCase();
+            const preview = document.getElementById('imagePreview');
+            const placeholder = document.getElementById('dropPlaceholder');
+
+            if (ext !== '.heic' && ext !== '.heif') {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    preview.src = e.target.result;
+                    preview.style.display = 'block';
+                    placeholder.style.display = 'none';
+                };
+                reader.readAsDataURL(file);
+            } else {
+                preview.style.display = 'none';
+                placeholder.style.display = 'flex';
+                document.getElementById('dropTextMain').innerText = `📄 ${file.name}`;
+            }
+
+            runAnalysis(file);
         }
 
         const VERDICT_MAP = {
-            'AI_GENERATED': { text: '🤖 Сгенерировано ИИ (AI Generated)', desc: 'Обнаружены структурные диффузионные паттерны генеративных сетей.' },
-            'REAL_PHOTO': { text: '📷 Подлинная фотография (Real Photo)', desc: 'Присутствуют естественные сенсорные шумы матрицы и физически корректный спектр.' },
-            'LOCAL_SPLICE': { text: '🧩 Локальный монтаж / Inpainting', desc: 'Обнаружена локализованная генеративная врезка на реальном снимке.' },
-            'DIGITAL_ART': { text: '🎨 Цифровая графика / 3D Render', desc: 'Изображение классифицировано как цифровая иллюстрация или рендер.' }
+            'AI_GENERATED': { text: 'AI Generated', desc: 'Обнаружены структурные диффузионные паттерны генеративных сетей.' },
+            'REAL_PHOTO': { text: 'Authentic Photo', desc: 'Присутствуют естественные шумы матрицы и физически корректный спектр.' },
+            'LOCAL_SPLICE': { text: 'Local Inpainting', desc: 'Обнаружена локализованная генеративная врезка на снимке.' },
+            'DIGITAL_ART': { text: 'Digital Art / 3D', desc: 'Изображение классифицировано как цифровая графика или рендер.' }
         };
 
-        async function analyzeImage(file) {
-            const loader = document.getElementById('loader');
-            const resultBox = document.getElementById('resultBox');
-            const deepSection = document.getElementById('deepSection');
-            const deepBtn = document.getElementById('deepBtn');
+        function updateExpertBadge(badgeId, cardId, prob, contribution) {
+            const badge = document.getElementById(badgeId);
+            const card = document.getElementById(cardId);
+
+            if (contribution !== undefined && Math.abs(contribution) < 0.01) {
+                badge.innerText = 'ОТКЛЮЧЕН // GATING';
+                badge.className = 'card-status-badge badge-disabled';
+                card.classList.add('disabled');
+                return;
+            }
+
+            card.classList.remove('disabled');
+            const isAi = prob > 0.5;
+            const probPercent = (prob * 100).toFixed(0);
             
-            loader.style.display = 'block';
-            resultBox.style.display = 'none';
-            deepSection.style.display = 'none';
-            isDeepOpen = false;
-            deepBtn.innerText = '🔬 Развернуть глубокий форензик-анализ (XAI)';
+            if (isAi) {
+                badge.innerText = `ИИ: ${probPercent}%`;
+                badge.className = 'card-status-badge badge-ai';
+            } else {
+                badge.innerText = `РЕАЛ: ${100 - probPercent}%`;
+                badge.className = 'card-status-badge badge-real';
+            }
+        }
+
+        async function runAnalysis(file) {
+            const spinner = document.getElementById('loaderSpinner');
+            spinner.style.display = 'block';
 
             const formData = new FormData();
             formData.append('file', file);
@@ -518,106 +922,86 @@
             try {
                 const res = await fetch('/api/analyze', { method: 'POST', body: formData });
                 const data = await res.json();
-                
-                loader.style.display = 'none';
-                resultBox.style.display = 'block';
+                spinner.style.display = 'none';
+
+                if (!res.ok) {
+                    alert(data.error || 'Ошибка при валидации файла.');
+                    return;
+                }
 
                 const verdictInfo = VERDICT_MAP[data.verdict] || { text: data.verdict, desc: 'Анализ завершен.' };
-                const label = document.getElementById('verdictLabel');
-                label.innerText = verdictInfo.text;
-                label.className = 'status-' + data.verdict;
-
+                const vTitle = document.getElementById('verdictTitle');
+                vTitle.innerText = verdictInfo.text;
+                vTitle.className = 'verdict-title verdict-' + data.verdict;
                 document.getElementById('verdictDesc').innerText = verdictInfo.desc;
 
-                const scoreBadge = document.getElementById('scoreBadge');
-                if (data.ai_probability !== undefined) {
-                    scoreBadge.innerText = `AI Score: ${(data.ai_probability * 100).toFixed(1)}%`;
-                    scoreBadge.style.color = data.ai_probability >= 0.50 ? 'var(--danger)' : 'var(--success)';
-                }
+                const score = (data.ai_probability * 100).toFixed(1);
+                document.getElementById('aiProbBadge').innerText = `AI SCORE: ${score}%`;
+                document.getElementById('confidenceBand').innerText = `BAND: ${data.confidence_band || 'HIGH'}`;
 
-                const bandBadge = document.getElementById('bandBadge');
-                bandBadge.innerText = `Band: ${data.confidence_band || 'HIGH'}`;
+                const bar = document.getElementById('scoreBarFill');
+                bar.style.width = `${score}%`;
+                bar.style.background = data.ai_probability >= 0.5 ? 'var(--ai-red)' : 'var(--real-green)';
 
-                if (data.metrics) {
-                    const probs = data.metrics.calibrated_probs || {};
-                    const raw = data.metrics.raw_scores || {};
+                const probs = data.metrics.calibrated_probs || {};
+                const contribs = data.metrics.contributions || {};
 
-                    document.getElementById('m_dino').innerText = probs.perceptual !== undefined ? `${(probs.perceptual * 100).toFixed(1)}%` : '-';
-                    document.getElementById('m_prnu').innerText = probs.prnu !== undefined ? `${(probs.prnu * 100).toFixed(1)}%` : '-';
-                    document.getElementById('m_ela').innerText = probs.ela !== undefined ? `${(probs.ela * 100).toFixed(1)}%` : '-';
-                    document.getElementById('m_fft').innerText = probs.fft !== undefined ? `${(probs.fft * 100).toFixed(1)}%` : '-';
-                    document.getElementById('m_srm').innerText = raw.srm_uncalibrated !== undefined ? raw.srm_uncalibrated.toFixed(3) : '-';
-                    document.getElementById('m_comp').innerText = data.metrics.compression_quality !== undefined ? `${(data.metrics.compression_quality * 100).toFixed(0)}%` : '-';
-                }
+                updateExpertBadge('badge_dino', 'card_dino', probs.perceptual ?? 0.5, contribs.perceptual_backbone ?? 1.0);
+                updateExpertBadge('badge_ela', 'card_ela', probs.ela ?? 0.5, contribs.ela ?? 0.0);
+                updateExpertBadge('badge_fft', 'card_fft', probs.fft ?? 0.5, contribs.fft ?? 0.0);
+                updateExpertBadge('badge_prnu', 'card_prnu', probs.prnu ?? 0.5, contribs.prnu ?? 0.0);
 
                 if (data.heatmaps) {
                     if (data.heatmaps.ela_image) {
-                        document.getElementById('elaImg').src = 'data:image/png;base64,' + data.heatmaps.ela_image;
+                        document.getElementById('preview_ela').innerHTML = `<img src="data:image/png;base64,${data.heatmaps.ela_image}" alt="ELA">`;
                     }
                     if (data.heatmaps.fft_image) {
-                        document.getElementById('fftImg').src = 'data:image/png;base64,' + data.heatmaps.fft_image;
+                        document.getElementById('preview_fft').innerHTML = `<img src="data:image/png;base64,${data.heatmaps.fft_image}" alt="FFT">`;
                     }
                 }
 
+                document.getElementById('preview_prnu').innerHTML = `
+                    <div style="text-align:center; padding:10px;">
+                        <span style="font-family:'JetBrains Mono'; font-size:0.75rem; color: ${probs.prnu > 0.5 ? 'var(--ai-red)' : 'var(--real-green)'};">
+                            ${probs.prnu > 0.5 ? '✖ ШУМ НЕ ОБНАРУЖЕН' : '✔ ШУМ МАТРИЦЫ СООТВЕТСТВУЕТ'}
+                        </span>
+                    </div>
+                `;
+
+                fetchDeepExplainability(file);
+
             } catch (err) {
-                loader.style.display = 'none';
-                alert('Ошибка анализа: ' + err);
+                spinner.style.display = 'none';
+                alert('Сетевая ошибка при анализе: ' + err);
             }
         }
 
-        async function toggleDeepAnalysis() {
-            const deepSection = document.getElementById('deepSection');
-            const deepBtn = document.getElementById('deepBtn');
-
-            if (isDeepOpen) {
-                deepSection.style.display = 'none';
-                deepBtn.innerText = '🔬 Развернуть глубокий форензик-анализ (XAI)';
-                isDeepOpen = false;
-                return;
-            }
-
-            if (!currentFile) return;
-
-            deepBtn.innerText = '⏳ Извлечение карт внимания и аномалий...';
+        async function fetchDeepExplainability(file) {
             const formData = new FormData();
-            formData.append('file', currentFile);
+            formData.append('file', file);
 
             try {
                 const res = await fetch('/api/deep-analysis', { method: 'POST', body: formData });
                 const deepData = await res.json();
 
-                const list = document.getElementById('expertsList');
-                list.innerHTML = '';
+                if (!res.ok) return;
 
                 (deepData.experts || []).forEach(exp => {
-                    const card = document.createElement('div');
-                    card.className = 'expert-card';
-
-                    const dirClass = 'dir-' + exp.direction;
-                    const sign = exp.contribution_percent > 0 ? '+' : '';
-
-                    let overlayHtml = '';
-                    if (exp.heatmap_b64) {
-                        overlayHtml = `<img class="overlay-preview" src="data:image/jpeg;base64,${exp.heatmap_b64}" alt="Anomaly Heatmap Overlay">`;
+                    if (exp.name.includes('PERCEPTUAL')) {
+                        document.getElementById('verdict_dino').innerText = exp.verdict_text;
+                        if (exp.heatmap_b64) {
+                            document.getElementById('preview_dino').innerHTML = `<img src="data:image/jpeg;base64,${exp.heatmap_b64}" alt="DINO Heatmap">`;
+                        }
+                    } else if (exp.name === 'ELA') {
+                        document.getElementById('verdict_ela').innerText = exp.verdict_text;
+                    } else if (exp.name === 'FFT') {
+                        document.getElementById('verdict_fft').innerText = exp.verdict_text;
+                    } else if (exp.name === 'PRNU') {
+                        document.getElementById('verdict_prnu').innerText = exp.verdict_text;
                     }
-
-                    card.innerHTML = `
-                        <div class="expert-head">
-                            <span>${exp.name} (P = ${(exp.probability * 100).toFixed(1)}%)</span>
-                            <span class="${dirClass}">Вклад: ${sign}${exp.contribution_percent}%</span>
-                        </div>
-                        <div class="expert-desc">${exp.verdict_text}</div>
-                        ${overlayHtml}
-                    `;
-                    list.appendChild(card);
                 });
-
-                deepSection.style.display = 'block';
-                deepBtn.innerText = '🔼 Скрыть глубокий форензик-анализ';
-                isDeepOpen = true;
-            } catch (err) {
-                alert('Ошибка глубокого анализа: ' + err);
-                deepBtn.innerText = '🔬 Развернуть глубокий форензик-анализ (XAI)';
+            } catch (e) {
+                console.warn('XAI deep fetch skipped:', e);
             }
         }
     </script>

@@ -9,7 +9,8 @@ import base64
 from pathlib import Path
 from typing import List, Optional
 from pydantic import BaseModel
-from PIL import Image, ImageChops, ImageEnhance
+from PIL import Image, ImageChops, ImageEnhance, UnidentifiedImageError
+import pillow_heif
 import numpy as np
 import cv2
 
@@ -17,9 +18,12 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
-from fastapi import FastAPI, File, Request, UploadFile
+from fastapi import FastAPI, File, Request, UploadFile, status
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
+
+# Регистрация поддержки HEIC/HEIF через Pillow
+pillow_heif.register_heif_opener()
 
 ROOT_DIR = Path(__file__).resolve().parent
 if str(ROOT_DIR) not in sys.path:
@@ -31,6 +35,10 @@ app = FastAPI(title="VeriVision MoE v3.5", version="3.5.0")
 templates = Jinja2Templates(directory="templates")
 
 detector = VeriVisionEnsemble(models_dir="models")
+
+# Разрешенные расширения и ограничения
+SUPPORTED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp", ".heic", ".heif"}
+MAX_FILE_SIZE_BYTES = 25 * 1024 * 1024  # 25 MB
 
 
 # --- СХЕМЫ ДАННЫХ ---
@@ -48,6 +56,32 @@ class DeepAnalysisResponse(BaseModel):
     confidence_band: str
     verdict: str
     experts: List[ExpertBreakdown]
+
+
+# --- ВАЛИДАЦИЯ ВХОДНЫХ ФАЙЛОВ ---
+def validate_and_load_image(file: UploadFile, image_bytes: bytes) -> Image.Image:
+    filename = file.filename or ""
+    file_ext = Path(filename).suffix.lower()
+    
+    if not file_ext or file_ext not in SUPPORTED_EXTENSIONS:
+        supported_str = ", ".join(sorted(SUPPORTED_EXTENSIONS))
+        raise ValueError(
+            f"Формат файла '{file_ext or 'неизвестный'}' не поддерживается. "
+            f"Разрешенные форматы: {supported_str}"
+        )
+
+    if len(image_bytes) == 0:
+        raise ValueError("Загружен пустой файл.")
+
+    if len(image_bytes) > MAX_FILE_SIZE_BYTES:
+        raise ValueError("Размер файла превышает допустимый лимит 25 МБ.")
+
+    try:
+        image = Image.open(io.BytesIO(image_bytes))
+        image.load()
+        return image.convert("RGB")
+    except (UnidentifiedImageError, Exception) as err:
+        raise ValueError(f"Не удалось прочитать изображение или файл поврежден: {str(err)}")
 
 
 # --- УТИЛИТЫ ВИЗУАЛИЗАЦИИ ---
@@ -132,19 +166,24 @@ async def index_view(request: Request):
 
 @app.post("/api/analyze")
 async def analyze_image_api(file: UploadFile = File(...)):
-    if not file.content_type or not file.content_type.startswith("image/"):
-        return JSONResponse(status_code=400, content={"error": "Invalid image format"})
-
     image_bytes = await file.read()
     try:
-        image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
-    except Exception:
-        return JSONResponse(status_code=400, content={"error": "Corrupted image file"})
+        image = validate_and_load_image(file, image_bytes)
+    except ValueError as val_err:
+        return JSONResponse(
+            status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+            content={"error": str(val_err), "code": "UNSUPPORTED_FORMAT"},
+        )
+    except Exception as e:
+        return JSONResponse(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            content={"error": f"Ошибка обработки файла: {str(e)}", "code": "PROCESSING_ERROR"},
+        )
 
     result = detector.analyze(image)
     
-    # Консольный дебаг
     print("\n" + "=" * 45)
+    print(f"FILE:           {file.filename}")
     print(f"VERDICT:        {result['verdict']} (AI Prob: {result['ai_probability']:.4f})")
     print(f"Calibrated P:   {result['metrics']['calibrated_probs']}")
     print(f"Contributions:  {result['metrics']['contributions']}")
@@ -161,14 +200,19 @@ async def analyze_image_api(file: UploadFile = File(...)):
 
 @app.post("/api/deep-analysis", response_model=DeepAnalysisResponse)
 async def deep_analysis_api(file: UploadFile = File(...)):
-    if not file.content_type or not file.content_type.startswith("image/"):
-        return JSONResponse(status_code=400, content={"error": "Invalid image format"})
-
     image_bytes = await file.read()
     try:
-        image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
-    except Exception:
-        return JSONResponse(status_code=400, content={"error": "Corrupted image file"})
+        image = validate_and_load_image(file, image_bytes)
+    except ValueError as val_err:
+        return JSONResponse(
+            status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+            content={"error": str(val_err), "code": "UNSUPPORTED_FORMAT"},
+        )
+    except Exception as e:
+        return JSONResponse(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            content={"error": f"Ошибка обработки файла: {str(e)}", "code": "PROCESSING_ERROR"},
+        )
 
     cv_image = np.asarray(image.resize((512, 512)))
     fusion_result = detector.analyze(image)
