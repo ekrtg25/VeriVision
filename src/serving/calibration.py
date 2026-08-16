@@ -1,22 +1,6 @@
 """
-Platt-scaling calibration for the classical forensic experts (ELA, PRNU, FFT).
-
-`ForensicsExtractor.compute_ela_score` / `compute_prnu_residual` and
-`FFTSpectralExtractor.extract_spectral_features` return *raw, uncalibrated*
-scalar scores (mean pixel-diff intensity, residual std-dev, spectral
-std/mean ratio - three completely different scales, none of them a
-probability). Feeding raw scores straight into a logit-fusion step
-(`w_i = |logit(p_i)|**k`) is meaningless: logit() expects a probability in
-(0, 1), and whichever raw score happens to have the largest numeric range
-will silently dominate the "confidence" weighting regardless of whether it
-is actually informative.
-
-`PlattCalibrator` fits `p = sigmoid(a * raw_score + b)` per expert on a
-labeled validation set (see scripts/fit_calibrators.py) and is pickled to
-`models/calibrators.pkl`. If no calibrator file is found yet, we fall back
-to an explicit, loud identity-ish default rather than crashing in prod -
-but predictions from uncalibrated experts should not be trusted for
-anything beyond "the pipeline runs end to end".
+Platt-scaling calibration with explicit Zero-Bias Centering (p=0.5 at baseline)
+to prevent uninformative classical experts from biasing the ensemble towards AI.
 """
 
 from __future__ import annotations
@@ -30,7 +14,7 @@ import numpy as np
 
 
 class PlattCalibrator:
-    """Single-feature logistic calibrator: p = sigmoid(a*x + b)."""
+    """Single-feature logistic calibrator: p = sigmoid(a * (x - x_center))."""
 
     def __init__(self, a: float = 1.0, b: float = 0.0):
         self.a = a
@@ -38,15 +22,24 @@ class PlattCalibrator:
 
     def predict_proba(self, raw_score: float) -> float:
         z = self.a * raw_score + self.b
+        # Ограничиваем диапазон z во избежание overflow в exp
+        z = np.clip(z, -15.0, 15.0)
         return float(1.0 / (1.0 + np.exp(-z)))
 
-    def fit(self, raw_scores: np.ndarray, labels: np.ndarray) -> "PlattCalibrator":
+    def fit(self, raw_scores: np.ndarray, labels: np.ndarray, fit_intercept: bool = False) -> "PlattCalibrator":
         from sklearn.linear_model import LogisticRegression
 
-        lr = LogisticRegression()
-        lr.fit(raw_scores.reshape(-1, 1), labels)
+        # 1. Находим точку нейтральности (медиану распределения признака)
+        x_center = float(np.median(raw_scores))
+        centered_scores = raw_scores - x_center
+
+        # 2. Обучаем наклон без свободного члена
+        lr = LogisticRegression(fit_intercept=False, C=1.0)
+        lr.fit(centered_scores.reshape(-1, 1), labels)
+        
         self.a = float(lr.coef_[0][0])
-        self.b = float(lr.intercept_[0])
+        # При x = x_center аргумент z = a*(x_center) + b = 0 => p = 0.5 (logit = 0)
+        self.b = float(-self.a * x_center)
         return self
 
     def to_dict(self) -> dict:
@@ -70,14 +63,10 @@ class CalibratorBank:
         path = Path(path)
         if not path.exists():
             warnings.warn(
-                f"[VeriVision] Calibrator file not found at {path}. Falling "
-                "back to an uncalibrated identity-sigmoid mapping for the "
-                "classical experts (ela/prnu/fft) - their calibrated_probs "
-                "will NOT be meaningful confidences until you run "
-                "scripts/fit_calibrators.py on labeled validation data.",
+                f"[VeriVision] Calibrator file not found at {path}. Falling back to default identity-sigmoid.",
                 stacklevel=2,
             )
-            return cls({name: PlattCalibrator() for name in cls.DEFAULT_EXPERTS})
+            return cls({name: PlattCalibrator(a=0.0, b=0.0) for name in cls.DEFAULT_EXPERTS})
 
         with open(path, "rb") as f:
             raw = pickle.load(f)

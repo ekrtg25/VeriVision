@@ -21,7 +21,6 @@ from fastapi import FastAPI, File, Request, UploadFile
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 
-# Гарантируем корректный импорт модулей проекта
 ROOT_DIR = Path(__file__).resolve().parent
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
@@ -31,7 +30,6 @@ from src.serving.ensemble import VeriVisionEnsemble
 app = FastAPI(title="VeriVision MoE v3.5", version="3.5.0")
 templates = Jinja2Templates(directory="templates")
 
-# Инициализация ансамбля
 detector = VeriVisionEnsemble(models_dir="models")
 
 
@@ -54,8 +52,6 @@ class DeepAnalysisResponse(BaseModel):
 
 # --- УТИЛИТЫ ВИЗУАЛИЗАЦИИ ---
 def generate_forensic_heatmaps(img: Image.Image) -> dict:
-    """Генерирует Base64-изображения для ELA и 2D FFT спектра."""
-    # 1. ELA
     buf_orig = io.BytesIO()
     img.save(buf_orig, "JPEG", quality=90)
     buf_orig.seek(0)
@@ -67,7 +63,6 @@ def generate_forensic_heatmaps(img: Image.Image) -> dict:
     ela_img.save(buf_ela, format="PNG")
     ela_b64 = base64.b64encode(buf_ela.getvalue()).decode("utf-8")
 
-    # 2. FFT Spectrum
     gray = np.array(img.convert("L"), dtype=np.float32)
     f = np.fft.fft2(gray)
     fshift = np.fft.fftshift(f)
@@ -87,7 +82,6 @@ def generate_forensic_heatmaps(img: Image.Image) -> dict:
 
 
 def generate_heatmap_overlay(original_image_np: np.ndarray, anomaly_mask: np.ndarray) -> str:
-    """Генерация тепловой карты через OpenCV JET поверх исходного изображения."""
     if len(anomaly_mask.shape) == 3:
         anomaly_mask = cv2.cvtColor(anomaly_mask, cv2.COLOR_BGR2GRAY)
 
@@ -127,25 +121,17 @@ def get_expert_verbalization(expert: str, prob: float, contribution: float) -> s
             if prob > 0.5
             else "Обнаружен характерный шум матрицы камеры."
         )
-    elif expert == "nn_mean":
-        return (
-            "Семантические и микротекстурные аномалии диффузии."
-            if prob > 0.5
-            else "Естественная текстура фотографии."
-        )
     return "Характерный паттерн обнаружен."
 
 
 # --- ЭНДПОИНТЫ API ---
 @app.get("/", response_class=HTMLResponse)
 async def index_view(request: Request):
-    """Главная страница интерфейса."""
     return templates.TemplateResponse(request=request, name="index.html")
 
 
 @app.post("/api/analyze")
 async def analyze_image_api(file: UploadFile = File(...)):
-    """Быстрый инференс с базовой оценкой и графиками спектра/сжатия."""
     if not file.content_type or not file.content_type.startswith("image/"):
         return JSONResponse(status_code=400, content={"error": "Invalid image format"})
 
@@ -157,11 +143,16 @@ async def analyze_image_api(file: UploadFile = File(...)):
 
     result = detector.analyze(image)
     
-    # Генерация превью форензики для UI
+    # Консольный дебаг
+    print("\n" + "=" * 45)
+    print(f"VERDICT:        {result['verdict']} (AI Prob: {result['ai_probability']:.4f})")
+    print(f"Calibrated P:   {result['metrics']['calibrated_probs']}")
+    print(f"Contributions:  {result['metrics']['contributions']}")
+    print("=" * 45 + "\n")
+
     resized_preview = image.resize((512, 512))
     result["heatmaps"] = generate_forensic_heatmaps(resized_preview)
 
-    # Очищаем внутренние numpy-объекты перед сериализацией в JSON
     if "_student_loc_map" in result:
         del result["_student_loc_map"]
 
@@ -170,7 +161,6 @@ async def analyze_image_api(file: UploadFile = File(...)):
 
 @app.post("/api/deep-analysis", response_model=DeepAnalysisResponse)
 async def deep_analysis_api(file: UploadFile = File(...)):
-    """Глубокий анализ с локализацией DINOv2 и детальным разбором экспертов."""
     if not file.content_type or not file.content_type.startswith("image/"):
         return JSONResponse(status_code=400, content={"error": "Invalid image format"})
 
@@ -183,11 +173,10 @@ async def deep_analysis_api(file: UploadFile = File(...)):
     cv_image = np.asarray(image.resize((512, 512)))
     fusion_result = detector.analyze(image)
 
-    # Обработка сценария 3D / Digital Art
     if fusion_result["verdict"] == "DIGITAL_ART":
         return DeepAnalysisResponse(
             ai_probability=1.0,
-            confidence_band="High",
+            confidence_band="VERY_HIGH",
             verdict="DIGITAL_ART",
             experts=[
                 ExpertBreakdown(
@@ -208,7 +197,6 @@ async def deep_analysis_api(file: UploadFile = File(...)):
 
     experts_response = []
 
-    # 1. Перцептивный эксперт DINOv2 с тепловой картой локализации
     student_loc_map = fusion_result.get("_student_loc_map")
     student_heatmap = None
     if student_loc_map is not None and np.max(student_loc_map) > 0.35:
@@ -238,7 +226,6 @@ async def deep_analysis_api(file: UploadFile = File(...)):
         )
     )
 
-    # 2. Карточки классической форензики (ELA, PRNU, FFT)
     for exp_name in ["ela", "prnu", "fft"]:
         cal_prob = calibrated_probs.get(exp_name, 0.5)
         contrib = contributions.get(exp_name, 0.0)

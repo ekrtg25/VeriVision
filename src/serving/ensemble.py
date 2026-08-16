@@ -1,65 +1,70 @@
 """
-VeriVisionEnsemble - main fusion engine for server.py.
-
-Fixes applied vs. the previous version of this file:
-  1. The classical forensic experts (ELA, PRNU, FFT) were never wired in -
-     `calibrated_probs["ela"/"prnu"/"fft"]` were literally copies of the
-     perceptual probability, and `server.py`'s `detector.forensics.*` calls
-     would crash with AttributeError (no `self.forensics`). Fixed: all
-     three real extractors are instantiated and actually run.
-  2. `contributions` were hardcoded constants (+-0.85 / +-0.05) regardless
-     of input, so the UI always showed every expert "agreeing" with the
-     perceptual model. Fixed: contributions now come out of a real
-     confidence-weighted logit fusion (README's `w_i = |logit(p_i)|**k`).
-  3. Raw ELA/PRNU/FFT scores were used directly with no calibration -
-     they're on incomparable numeric scales and aren't probabilities.
-     Fixed: Platt-scaling via `CalibratorBank` (src/serving/calibration.py).
-  4. A confidently-local splice on a mostly-real photo was labeled
-     `AI_GENERATED` (technically not "lost", but semantically wrong - the
-     whole photo isn't AI-generated, a region of it is spliced/inpainted).
-     Fixed: dedicated `LOCAL_SPLICE` verdict, using un-fused p_global/p_local
-     from the perceptual aggregator (see patch_aggregation.py).
-  5. `server.py` expects a `verdict == "DIGITAL_ART"` short-circuit branch
-     that this class never produced. Fixed: optional CLIP semantic
-     prefilter (src/models/prefilter.py) gates it, degrading gracefully
-     (skips the check, does not crash) if open_clip / its weights aren't
-     available in the deployment.
-  6. Response dict had ~6 duplicate keys for the same verdict string
-     (verdict_ru/verdict_text/prediction/title/status) - guessing at what
-     the frontend wants instead of a single fixed contract. Fixed: contract
-     is exactly what `server.py`'s Pydantic models / route handlers consume
-     (see docs/API_CONTRACT.md for the full field list the frontend should
-     rely on).
+VeriVisionEnsemble - robust fusion engine with Dynamic Gating and Weight Capping.
+Обновлено под FineTunedDINO (CLS + Mean Patches) с генерацией Dense Heatmap.
 """
 
 from __future__ import annotations
 
 import warnings
 from pathlib import Path
-from typing import Any, Dict, Optional, Union
+from typing import Any, Dict, Optional
 
 import numpy as np
 import torch
+import torch.nn as nn
 from PIL import Image
 from torchvision import transforms
+from transformers import AutoModel
 
-from src.models.perceptual_student import DINOv2ForensicStudent
 from src.models.forensics import ForensicsExtractor
 from src.models.fft_module import FFTSpectralExtractor
 from src.models.srm_module import SRMFeatureExtractor
-from src.serving.patch_aggregation import aggregate_perceptual
 from src.serving.calibration import CalibratorBank
 
 try:
     from src.models.prefilter import ContentPrefilter
     _PREFILTER_IMPORT_OK = True
-except Exception as _prefilter_err:  # open_clip missing, no internet for weights, etc.
+except Exception as _prefilter_err:
     _PREFILTER_IMPORT_OK = False
     _PREFILTER_IMPORT_ERROR = _prefilter_err
 
-
 DINOV2_MEAN = [0.485, 0.456, 0.406]
 DINOV2_STD = [0.229, 0.224, 0.225]
+
+
+class FineTunedDINO(nn.Module):
+    """Обновленная архитектура DINOv2 под веса с Kaggle."""
+    def __init__(self):
+        super().__init__()
+        self.backbone = AutoModel.from_pretrained("facebook/dinov2-base")
+        self.classifier = nn.Sequential(
+            nn.Dropout(0.4),
+            nn.Linear(768 * 2, 384),
+            nn.BatchNorm1d(384),
+            nn.GELU(),
+            nn.Dropout(0.3),
+            nn.Linear(384, 2)
+        )
+
+    def forward(self, x):
+        outputs = self.backbone(x)
+        tokens = outputs.last_hidden_state
+        cls_tok = tokens[:, 0]
+        patch_tokens = tokens[:, 1:]
+        patch_mean = patch_tokens.mean(dim=1)
+        
+        # 1. Глобальный предикт
+        features = torch.cat([cls_tok, patch_mean], dim=1)
+        global_logits = self.classifier(features)
+        
+        # 2. Локальный предикт (Dense Evaluation для тепловой карты)
+        # Размножаем CLS токен и склеиваем с каждым из 1369 патчей
+        B, N, C = patch_tokens.shape
+        cls_expanded = cls_tok.unsqueeze(1).expand(B, N, C)
+        dense_features = torch.cat([cls_expanded, patch_tokens], dim=-1) # [B, N, 1536]
+        
+        dense_logits = self.classifier(dense_features.view(B * N, -1)).view(B, N, 2)
+        return global_logits, dense_logits
 
 
 class VeriVisionEnsemble:
@@ -69,11 +74,12 @@ class VeriVisionEnsemble:
         dinov2_weights_path: Optional[str] = None,
         calibrators_path: Optional[str] = None,
         device: Optional[str] = None,
-        fusion_k: float = 2.0,
+        fusion_k: float = 1.5,
         ai_threshold: float = 0.5,
-        local_splice_local_threshold: float = 0.5,
-        local_splice_global_threshold: float = 0.5,
-        digital_art_threshold: float = 0.55,
+        local_splice_local_threshold: float = 0.60,
+        local_splice_global_threshold: float = 0.45,
+        digital_art_threshold: float = 0.50,
+        max_classical_weight_ratio: float = 0.20,
         enable_prefilter: bool = True,
         require_student_weights: bool = True,
         *args,
@@ -94,105 +100,85 @@ class VeriVisionEnsemble:
         self.local_splice_local_threshold = local_splice_local_threshold
         self.local_splice_global_threshold = local_splice_global_threshold
         self.digital_art_threshold = digital_art_threshold
+        self.max_classical_weight_ratio = max_classical_weight_ratio
 
         print(f"[+] Инициализация VeriVision на {self.device}...")
 
-        # ---------------- Perceptual student (DINOv2) ----------------
+        # ---------------- Perceptual student (FineTuned DINOv2) ----------------
         if dinov2_weights_path is None:
-            dinov2_weights_path = str(self.models_dir / "perceptual_student.pth")
+            dinov2_weights_path = str(self.models_dir / "calibrated_head.pth")
 
-        self.dinov2_model = DINOv2ForensicStudent().to(self.device)
+        self.dinov2_model = FineTunedDINO().to(self.device)
 
         if Path(dinov2_weights_path).exists():
             ckpt = torch.load(dinov2_weights_path, map_location=self.device)
-            state_dict = (
-                ckpt["model_state_dict"]
-                if isinstance(ckpt, dict) and "model_state_dict" in ckpt
-                else ckpt
-            )
+            # Извлекаем state_dict если веса были сохранены внутри словаря
+            state_dict = ckpt["model_state_dict"] if isinstance(ckpt, dict) and "model_state_dict" in ckpt else ckpt
             self.dinov2_model.load_state_dict(state_dict)
             print(f"[OK] DINOv2 веса успешно загружены: {dinov2_weights_path}")
         elif require_student_weights:
             raise FileNotFoundError(f"[!] Файл весов не найден: {dinov2_weights_path}")
         else:
-            warnings.warn(
-                f"[VeriVision] {dinov2_weights_path} not found - running with "
-                "randomly initialized perceptual weights. Predictions will be "
-                "meaningless until a real checkpoint is provided.",
-                stacklevel=2,
-            )
+            warnings.warn("[VeriVision] Running with randomly initialized weights.", stacklevel=2)
 
         self.dinov2_model.eval()
 
-        self.dinov2_transform = transforms.Compose(
-            [
-                transforms.Resize((518, 518)),
-                transforms.ToTensor(),
-                transforms.Normalize(mean=DINOV2_MEAN, std=DINOV2_STD),
-            ]
-        )
+        self.dinov2_transform = transforms.Compose([
+            transforms.Resize((518, 518)),
+            transforms.ToTensor(),
+            transforms.Normalize(mean=DINOV2_MEAN, std=DINOV2_STD),
+        ])
 
-        # ---------------- Classical forensic experts ----------------
-        # These were completely unused in the previous version of this
-        # file. They are cheap (no learned weights) and run on CPU.
         self.forensics = ForensicsExtractor()
         self.fft = FFTSpectralExtractor()
         self.srm = SRMFeatureExtractor()
 
-        # ---------------- Calibration ----------------
         if calibrators_path is None:
             calibrators_path = self.models_dir / "calibrators.pkl"
-        self.calibrators = CalibratorBank.load(calibrators_path)
+        
+        if Path(calibrators_path).exists():
+            self.calibrators = CalibratorBank.load(calibrators_path)
+        else:
+            print(f"[!] Калибраторы не найдены по пути {calibrators_path}. Проверьте наличие файла.")
+            self.calibrators = CalibratorBank() # Fallback
 
-        # ---------------- Optional semantic prefilter ----------------
         self.prefilter = None
-        if enable_prefilter:
-            if _PREFILTER_IMPORT_OK:
-                try:
-                    self.prefilter = ContentPrefilter()
-                except Exception as e:
-                    warnings.warn(
-                        f"[VeriVision] ContentPrefilter failed to initialize "
-                        f"({e!r}) - DIGITAL_ART short-circuit disabled, "
-                        "continuing with the forensic pipeline only.",
-                        stacklevel=2,
-                    )
-            else:
-                warnings.warn(
-                    f"[VeriVision] ContentPrefilter unavailable "
-                    f"({_PREFILTER_IMPORT_ERROR!r}) - DIGITAL_ART "
-                    "short-circuit disabled.",
-                    stacklevel=2,
-                )
+        if enable_prefilter and _PREFILTER_IMPORT_OK:
+            try:
+                self.prefilter = ContentPrefilter()
+            except Exception as e:
+                warnings.warn(f"[VeriVision] Prefilter disabled: {e!r}", stacklevel=2)
 
-    # ------------------------------------------------------------------
     @staticmethod
     def _safe_logit(p: float, eps: float = 1e-6) -> float:
         p = min(max(p, eps), 1 - eps)
         return float(np.log(p / (1 - p)))
 
-    def _confidence_weighted_fusion(self, calibrated_probs: Dict[str, float]):
-        """
-        w_i = |logit(p_i)|**k
-        fused_logit = sum(w_i * logit(p_i)) / sum(w_i)
-
-        An expert that says p ~= 0.5 ("I don't know") has logit ~= 0, hence
-        weight ~= 0, and is automatically excluded from the vote instead of
-        dragging a confident expert back toward 0.5.
-        """
+    def _confidence_weighted_fusion(self, calibrated_probs: Dict[str, float], compression_quality: float):
         logits = {name: self._safe_logit(p) for name, p in calibrated_probs.items()}
-        weights = {name: abs(z) ** self.fusion_k for name, z in logits.items()}
-        total_w = sum(weights.values())
+        raw_weights = {name: abs(z) ** self.fusion_k for name, z in logits.items()}
 
+        gating_multiplier = max(0.1, min(1.0, compression_quality))
+        raw_weights["ela"] *= gating_multiplier
+        raw_weights["fft"] *= gating_multiplier
+
+        w_perceptual = max(raw_weights.get("perceptual", 1.0), 0.2)
+        max_allowed_classical_weight = w_perceptual * self.max_classical_weight_ratio
+
+        weights = {}
+        for name, w in raw_weights.items():
+            if name == "perceptual":
+                weights[name] = w
+            else:
+                weights[name] = min(w, max_allowed_classical_weight)
+
+        total_w = sum(weights.values())
         if total_w < 1e-9:
             return 0.5, {name: 0.0 for name in calibrated_probs}
 
         fused_logit = sum(weights[n] * logits[n] for n in logits) / total_w
         ai_probability = float(1.0 / (1.0 + np.exp(-fused_logit)))
 
-        # Signed fraction of total confidence each expert contributed -
-        # sums to 1 in absolute value, sign matches whether that expert
-        # voted AI (+) or REAL (-).
         contributions = {
             name: float(weights[name] / total_w * np.sign(logits[name]))
             for name in logits
@@ -202,35 +188,47 @@ class VeriVisionEnsemble:
     @staticmethod
     def _confidence_band(ai_probability: float) -> str:
         dist = abs(ai_probability - 0.5)
-        if dist >= 0.35:
-            return "VERY_HIGH"
-        if dist >= 0.20:
-            return "HIGH"
-        if dist >= 0.05:
-            return "MODERATE"
+        if dist >= 0.35: return "VERY_HIGH"
+        if dist >= 0.20: return "HIGH"
+        if dist >= 0.05: return "MODERATE"
         return "LOW"
 
-    # ------------------------------------------------------------------
     @torch.no_grad()
     def _run_student(self, image: Image.Image):
         tensor = self.dinov2_transform(image).unsqueeze(0).to(self.device)
-        cls_logit, loc_map_logits = self.dinov2_model(tensor)
-        return aggregate_perceptual(cls_logit[0], loc_map_logits[0:1])
+        global_logits, dense_logits = self.dinov2_model(tensor)
+        
+        # 1. Глобальная вероятность AI
+        probs = torch.softmax(global_logits, dim=1)[0]
+        p_global = float(probs[1].item())
+        
+        # 2. Формируем 2D-карту аномалий из Dense Evaluation
+        dense_probs = torch.softmax(dense_logits[0], dim=1)[:, 1]
+        H = W = int(np.sqrt(dense_probs.shape[0])) # 37x37 для 518px
+        loc_map = dense_probs.view(H, W)
+        p_local = float(loc_map.max().item())
+        
+        # 3. Эвристический фьюжн: доверяем глобальному контексту, но учитываем локальные всплески
+        p_fused = 0.7 * p_global + 0.3 * p_local
+        
+        # Мокаем объект агрегации, чтобы не ломать analyze()
+        class AggregationResult:
+            pass
+        agg = AggregationResult()
+        agg.p_global = p_global
+        agg.p_local = p_local
+        agg.p_fused = p_fused
+        agg.loc_map = loc_map
+        return agg
 
     def analyze(self, image: Image.Image) -> Dict[str, Any]:
         img_rgb = image.convert("RGB")
 
-        # 1. Semantic prefilter: bail out early for non-photographic content
-        #    (3D renders / illustrations / screenshots), matching the
-        #    `verdict == "DIGITAL_ART"` branch server.py already handles.
         if self.prefilter is not None:
             try:
                 semantics = self.prefilter.classify_semantics(img_rgb)
-                non_photo_prob = semantics.get("digital_art", 0.0) + semantics.get(
-                    "screenshot", 0.0
-                )
-            except Exception as e:
-                warnings.warn(f"[VeriVision] prefilter inference failed: {e!r}", stacklevel=2)
+                non_photo_prob = semantics.get("digital_art", 0.0) + semantics.get("screenshot", 0.0)
+            except Exception:
                 non_photo_prob = 0.0
 
             if non_photo_prob >= self.digital_art_threshold:
@@ -248,18 +246,13 @@ class VeriVisionEnsemble:
                     "_student_loc_map": None,
                 }
 
-        # 2. Perceptual student: MIL-aggregated CLS + patch-anomaly signal
         agg = self._run_student(img_rgb)
 
-        # 3. Classical forensic experts - now actually invoked
         image_np = np.asarray(img_rgb)
+        compression_quality = self.forensics.estimate_jpeg_compression_level(image)
         ela_raw = self.forensics.compute_ela_score(img_rgb)
         prnu_raw = self.forensics.compute_prnu_residual(image_np)
         fft_raw = self.fft.extract_spectral_features(image_np)
-        # SRM has no fitted calibrator yet (no labeled data has gone through
-        # scripts/fit_calibrators.py for it) - surfaced as a raw diagnostic
-        # score only, not voted into the fusion, rather than guessing a
-        # weight for it.
         srm_raw = self.srm.extract_srm_profile(image_np)
 
         calibrated_probs = {
@@ -269,18 +262,12 @@ class VeriVisionEnsemble:
             "fft": self.calibrators.calibrate("fft", fft_raw),
         }
 
-        # 4. Confidence-weighted logit fusion across calibrated experts
-        ai_prob, contributions = self._confidence_weighted_fusion(calibrated_probs)
+        ai_prob, contributions = self._confidence_weighted_fusion(
+            calibrated_probs, compression_quality=compression_quality
+        )
         contributions["perceptual_backbone"] = contributions.pop("perceptual")
 
-        # 5. Verdict - including LOCAL_SPLICE, using the *un-fused*
-        #    global/local perceptual probabilities (not the cross-expert
-        #    fused one) so a confidently-local anomaly on an otherwise-real
-        #    photo isn't relabeled as "the whole image is AI-generated".
-        if (
-            agg.p_local > self.local_splice_local_threshold
-            and agg.p_global < self.local_splice_global_threshold
-        ):
+        if agg.p_local > self.local_splice_local_threshold and agg.p_global < self.local_splice_global_threshold:
             verdict = "LOCAL_SPLICE"
         elif ai_prob >= self.ai_threshold:
             verdict = "AI_GENERATED"
@@ -310,6 +297,7 @@ class VeriVisionEnsemble:
                 "calibrated_probs": {k: round(v, 4) for k, v in calibrated_probs.items()},
                 "contributions": {k: round(v, 4) for k, v in contributions.items()},
                 "detected_artifacts": detected_artifacts,
+                "compression_quality": round(float(compression_quality), 3),
                 "raw_scores": {
                     "ela": round(float(ela_raw), 4),
                     "prnu": round(float(prnu_raw), 4),
@@ -320,18 +308,4 @@ class VeriVisionEnsemble:
             "_student_loc_map": agg.loc_map.cpu().numpy(),
         }
 
-    # Backwards-compatible aliases some earlier callers used
-    predict = analyze
-    deep_analyze = analyze
-
-
 ForensicEnsemble = VeriVisionEnsemble
-
-_ensemble_instance: Optional[VeriVisionEnsemble] = None
-
-
-def get_ensemble(models_dir: str = "models") -> VeriVisionEnsemble:
-    global _ensemble_instance
-    if _ensemble_instance is None:
-        _ensemble_instance = VeriVisionEnsemble(models_dir=models_dir)
-    return _ensemble_instance

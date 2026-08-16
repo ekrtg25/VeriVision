@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VeriVision MoE v3.4</title>
+    <title>VeriVision MoE v3.5</title>
     <style>
         :root {
             --bg: #0b0f19;
@@ -17,6 +17,7 @@
             --danger: #ef4444;
             --success: #10b981;
             --warning: #f59e0b;
+            --purple: #a855f7;
         }
 
         body {
@@ -50,7 +51,7 @@
             background: #1e293b;
             color: #60a5fa;
             font-size: 0.75rem;
-            padding: 4px 8px;
+            padding: 4px 10px;
             border-radius: 999px;
             border: 1px solid #3b82f640;
             font-weight: 600;
@@ -122,6 +123,11 @@
             transition: border-color 0.2s, background 0.2s;
         }
 
+        .upload-card.dragover {
+            border-color: var(--accent);
+            background: #17223b;
+        }
+
         .upload-card:hover {
             border-color: var(--accent);
             background: #17223b;
@@ -137,6 +143,7 @@
             border-radius: 8px;
             display: none;
             margin: 0 auto 16px auto;
+            object-fit: contain;
         }
 
         .btn {
@@ -189,16 +196,17 @@
 
         .status-AI_GENERATED { color: var(--danger); }
         .status-REAL_PHOTO { color: var(--success); }
-        .status-DIGITAL_ART { color: #a855f7; }
-        .status-UNCERTAIN { color: var(--warning); }
+        .status-DIGITAL_ART { color: var(--purple); }
+        .status-LOCAL_SPLICE { color: var(--warning); }
 
         .band-badge {
             font-size: 0.78rem;
-            padding: 3px 8px;
+            padding: 4px 10px;
             border-radius: 6px;
             background: #1e293b;
             color: var(--text-muted);
             border: 1px solid var(--border);
+            font-weight: 600;
         }
 
         .metrics-grid {
@@ -215,11 +223,15 @@
             display: flex;
             justify-content: space-between;
             background: var(--surface-card);
-            padding: 8px 12px;
+            padding: 10px 14px;
             border-radius: 6px;
+            border: 1px solid #1c263c;
         }
 
-        /* Блок глубокого анализа */
+        .metric-item span {
+            color: var(--text-muted);
+        }
+
         .deep-section {
             display: none;
             margin-top: 20px;
@@ -238,7 +250,7 @@
             background: var(--surface-card);
             border: 1px solid var(--border);
             border-radius: 8px;
-            padding: 12px;
+            padding: 14px;
         }
 
         .expert-head {
@@ -249,23 +261,25 @@
             font-weight: 600;
         }
 
-        .dir-AI { color: var(--danger); }
-        .dir-REAL { color: var(--success); }
+        .dir-AI { color: var(--danger); font-weight: 700; }
+        .dir-REAL { color: var(--success); font-weight: 700; }
         .dir-NEUTRAL { color: var(--text-muted); }
 
         .expert-desc {
-            font-size: 0.78rem;
-            color: var(--text-muted);
-            margin-top: 4px;
+            font-size: 0.8rem;
+            color: #d1d5db;
+            margin-top: 6px;
+            line-height: 1.35;
         }
 
         .overlay-preview {
             width: 100%;
-            max-height: 220px;
+            max-height: 260px;
             object-fit: contain;
             border-radius: 6px;
-            margin-top: 8px;
+            margin-top: 10px;
             background: #000;
+            border: 1px solid var(--border);
         }
 
         .heatmaps-grid {
@@ -279,17 +293,18 @@
             background: var(--surface-card);
             border: 1px solid var(--border);
             border-radius: 8px;
-            padding: 10px;
+            padding: 12px;
             text-align: center;
         }
 
         .heatmap-box img {
             width: 100%;
-            height: 170px;
+            height: 180px;
             object-fit: contain;
             border-radius: 6px;
             background: #000;
-            margin-top: 6px;
+            margin-top: 8px;
+            border: 1px solid #1c263c;
         }
 
         .loader {
@@ -298,8 +313,8 @@
             border: 3px solid #232f48;
             border-top: 3px solid var(--accent);
             border-radius: 50%;
-            width: 32px;
-            height: 32px;
+            width: 34px;
+            height: 34px;
             animation: spin 0.8s linear infinite;
         }
 
@@ -314,7 +329,7 @@
     <header>
         <div style="display: flex; align-items: center; gap: 10px;">
             <span style="font-size: 1.3rem; font-weight: 800;">👁️ VeriVision</span>
-            <span class="badge">MoE v3.4</span>
+            <span class="badge">MoE v3.5</span>
         </div>
     </header>
 
@@ -322,39 +337,39 @@
         <!-- КАК ЭТО РАБОТАЕТ -->
         <section class="info-section">
             <div class="info-title">
-                <span>⚙️ Как работает система анализа</span>
+                <span>⚙️ Архитектура анализа VeriVision MoE</span>
             </div>
             <div class="steps-grid">
                 <div class="step-card">
                     <div class="step-icon">🎨</div>
-                    <div class="step-name">1. Zero-Shot CLIP</div>
-                    <div class="step-desc">Отсекает не-фото контент, 3D-графику и иллюстрации до запуска форензики.</div>
-                </div>
-                <div class="step-card">
-                    <div class="step-icon">🔬</div>
-                    <div class="step-name">2. Физика матрицы</div>
-                    <div class="step-desc">PRNU оценивает след кремниевого сенсора с учетом подавления артефактов сжатия.</div>
-                </div>
-                <div class="step-card">
-                    <div class="step-icon">📊</div>
-                    <div class="step-name">3. Анализ сжатия</div>
-                    <div class="step-desc">ELA ищет неоднородности квантования JPEG и следы локального монтажа.</div>
+                    <div class="step-name">1. Content Prefilter</div>
+                    <div class="step-desc">Zero-shot отсечение 3D-графики, иллюстраций и скриншотов до глубокого инференса.</div>
                 </div>
                 <div class="step-card">
                     <div class="step-icon">🧠</div>
-                    <div class="step-name">4. ConvNeXt + FFT</div>
-                    <div class="step-desc">Multi-crop пулинг и 2D-спектр выявляют диффузионные сетки генераторов.</div>
+                    <div class="step-name">2. DINOv2 Fine-Tuned</div>
+                    <div class="step-desc">Детекция диффузионных следов через конкатенацию CLS-токена и dense-патчей (1536d).</div>
+                </div>
+                <div class="step-card">
+                    <div class="step-icon">🔬</div>
+                    <div class="step-name">3. PRNU + SRM Физика</div>
+                    <div class="step-desc">Проверка уникального отпечатка кремниевого сенсора камеры и остаточного шума.</div>
+                </div>
+                <div class="step-card">
+                    <div class="step-icon">📊</div>
+                    <div class="step-name">4. ELA + 2D FFT & Gating</div>
+                    <div class="step-desc">Спектральные сетки генерации и динамическое подавление весов при сильном сжатии.</div>
                 </div>
             </div>
         </section>
 
         <!-- ЗАГРУЗКА -->
-        <div class="upload-card" onclick="document.getElementById('fileInput').click()">
+        <div class="upload-card" id="dropZone" onclick="document.getElementById('fileInput').click()">
             <img id="preview" class="preview-img" alt="Preview">
             <p id="uploadText" style="margin: 0; color: var(--text-muted);">
-                Нажмите или перетащите изображение (JPG, PNG, WebP)
+                Нажмите или перетащите изображение (JPG, PNG, WebP, HEIC)
             </p>
-            <input type="file" id="fileInput" accept="image/*" onchange="handleFileSelect(event)">
+            <input type="file" id="fileInput" accept="image/*,.heic,.heif" onchange="handleFileSelect(event)">
         </div>
 
         <div class="loader" id="loader"></div>
@@ -365,58 +380,58 @@
                 <span id="verdictLabel">...</span>
                 <div style="display: flex; align-items: center; gap: 8px;">
                     <span id="bandBadge" class="band-badge"></span>
-                    <span id="scoreBadge" style="font-size: 1.1rem;"></span>
+                    <span id="scoreBadge" style="font-size: 1.1rem; font-weight: 700;"></span>
                 </div>
             </div>
             
             <p id="verdictDesc" style="color: var(--text-muted); font-size: 0.9rem; margin: 0 0 16px 0;"></p>
 
             <button id="deepBtn" class="btn btn-secondary" style="width: 100%;" onclick="toggleDeepAnalysis()">
-                🔬 Развернуть глубокий форензик-анализ
+                🔬 Развернуть глубокий форензик-анализ (XAI)
             </button>
 
             <!-- МЕТРИКИ -->
             <div class="metrics-grid">
                 <div class="metric-item">
-                    <span>ConvNeXt Base:</span>
-                    <strong id="m_nn">-</strong>
+                    <span>DINOv2 Perceptual:</span>
+                    <strong id="m_dino">-</strong>
                 </div>
                 <div class="metric-item">
-                    <span>Crop Variance:</span>
-                    <strong id="m_var">-</strong>
-                </div>
-                <div class="metric-item">
-                    <span>ELA Error:</span>
-                    <strong id="m_ela">-</strong>
-                </div>
-                <div class="metric-item">
-                    <span>PRNU Sensor:</span>
+                    <span>Sensor PRNU:</span>
                     <strong id="m_prnu">-</strong>
                 </div>
                 <div class="metric-item">
-                    <span>FFT Spectrum:</span>
+                    <span>ELA Inconsistency:</span>
+                    <strong id="m_ela">-</strong>
+                </div>
+                <div class="metric-item">
+                    <span>Spectral 2D FFT:</span>
                     <strong id="m_fft">-</strong>
                 </div>
                 <div class="metric-item">
-                    <span>Disagreement:</span>
-                    <strong id="m_dis">-</strong>
+                    <span>SRM Residual:</span>
+                    <strong id="m_srm">-</strong>
+                </div>
+                <div class="metric-item">
+                    <span>JPEG Compression:</span>
+                    <strong id="m_comp">-</strong>
                 </div>
             </div>
 
             <!-- РАЗДЕЛ ГЛУБОКОГО АНАЛИЗА -->
             <div class="deep-section" id="deepSection">
                 <div style="font-size: 0.95rem; font-weight: 700; color: #93c5fd;">
-                    Детализация решений экспертов
+                    Детализация решений экспертов ансамбля
                 </div>
                 <div class="experts-list" id="expertsList"></div>
 
                 <div class="heatmaps-grid">
                     <div class="heatmap-box">
-                        <div style="font-size: 0.8rem; font-weight: 600;">Карта ELA</div>
+                        <div style="font-size: 0.8rem; font-weight: 600;">Error Level Analysis (ELA)</div>
                         <img id="elaImg" alt="ELA Map">
                     </div>
                     <div class="heatmap-box">
-                        <div style="font-size: 0.8rem; font-weight: 600;">2D FFT Спектрограмма</div>
+                        <div style="font-size: 0.8rem; font-weight: 600;">2D FFT Логарифмический Спектр</div>
                         <img id="fftImg" alt="FFT Spectrum">
                     </div>
                 </div>
@@ -428,10 +443,44 @@
         let currentFile = null;
         let isDeepOpen = false;
 
+        const dropZone = document.getElementById('dropZone');
+
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            dropZone.addEventListener(eventName, preventDefaults, false);
+            document.body.addEventListener(eventName, preventDefaults, false);
+        });
+
+        function preventDefaults(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+
+        ['dragenter', 'dragover'].forEach(eventName => {
+            dropZone.addEventListener(eventName, () => dropZone.classList.add('dragover'), false);
+        });
+
+        ['dragleave', 'drop'].forEach(eventName => {
+            dropZone.addEventListener(eventName, () => dropZone.classList.remove('dragover'), false);
+        });
+
+        dropZone.addEventListener('drop', handleDrop, false);
+
+        function handleDrop(e) {
+            const dt = e.dataTransfer;
+            const files = dt.files;
+            if (files.length > 0) {
+                processFile(files[0]);
+            }
+        }
+
         function handleFileSelect(event) {
             const file = event.target.files[0];
-            if (!file) return;
+            if (file) {
+                processFile(file);
+            }
+        }
 
+        function processFile(file) {
             currentFile = file;
             const reader = new FileReader();
             reader.onload = function(e) {
@@ -444,6 +493,13 @@
             reader.readAsDataURL(file);
         }
 
+        const VERDICT_MAP = {
+            'AI_GENERATED': { text: '🤖 Сгенерировано ИИ (AI Generated)', desc: 'Обнаружены структурные диффузионные паттерны генеративных сетей.' },
+            'REAL_PHOTO': { text: '📷 Подлинная фотография (Real Photo)', desc: 'Присутствуют естественные сенсорные шумы матрицы и физически корректный спектр.' },
+            'LOCAL_SPLICE': { text: '🧩 Локальный монтаж / Inpainting', desc: 'Обнаружена локализованная генеративная врезка на реальном снимке.' },
+            'DIGITAL_ART': { text: '🎨 Цифровая графика / 3D Render', desc: 'Изображение классифицировано как цифровая иллюстрация или рендер.' }
+        };
+
         async function analyzeImage(file) {
             const loader = document.getElementById('loader');
             const resultBox = document.getElementById('resultBox');
@@ -454,7 +510,7 @@
             resultBox.style.display = 'none';
             deepSection.style.display = 'none';
             isDeepOpen = false;
-            deepBtn.innerText = '🔬 Развернуть глубокий форензик-анализ';
+            deepBtn.innerText = '🔬 Развернуть глубокий форензик-анализ (XAI)';
 
             const formData = new FormData();
             formData.append('file', file);
@@ -466,30 +522,32 @@
                 loader.style.display = 'none';
                 resultBox.style.display = 'block';
 
+                const verdictInfo = VERDICT_MAP[data.verdict] || { text: data.verdict, desc: 'Анализ завершен.' };
                 const label = document.getElementById('verdictLabel');
-                label.innerText = data.label;
+                label.innerText = verdictInfo.text;
                 label.className = 'status-' + data.verdict;
 
-                document.getElementById('verdictDesc').innerText = data.description || 
-                    (data.is_uncertain ? 'Эксперты разошлись во мнении. Рекомендуется инструментальная проверка.' : 'Решение принято согласованным ансамблем.');
+                document.getElementById('verdictDesc').innerText = verdictInfo.desc;
 
                 const scoreBadge = document.getElementById('scoreBadge');
                 if (data.ai_probability !== undefined) {
                     scoreBadge.innerText = `AI Score: ${(data.ai_probability * 100).toFixed(1)}%`;
-                    scoreBadge.style.color = data.ai_probability >= 0.55 ? 'var(--danger)' : (data.ai_probability <= 0.40 ? 'var(--success)' : 'var(--warning)');
+                    scoreBadge.style.color = data.ai_probability >= 0.50 ? 'var(--danger)' : 'var(--success)';
                 }
 
                 const bandBadge = document.getElementById('bandBadge');
-                bandBadge.innerText = `Уверенность: ${data.confidence_band || 'High'}`;
+                bandBadge.innerText = `Band: ${data.confidence_band || 'HIGH'}`;
 
                 if (data.metrics) {
-                    const raw = data.metrics.raw_features || {};
-                    document.getElementById('m_nn').innerText = raw.nn_mean !== undefined ? raw.nn_mean.toFixed(3) : '-';
-                    document.getElementById('m_var').innerText = raw.nn_std !== undefined ? raw.nn_std.toFixed(3) : '-';
-                    document.getElementById('m_ela').innerText = raw.ela !== undefined ? raw.ela.toFixed(3) : '-';
-                    document.getElementById('m_prnu').innerText = raw.prnu !== undefined ? raw.prnu.toFixed(2) : '-';
-                    document.getElementById('m_fft').innerText = raw.fft !== undefined ? raw.fft.toFixed(2) : '-';
-                    document.getElementById('m_dis').innerText = data.metrics.disagreement_std !== undefined ? data.metrics.disagreement_std.toFixed(3) : '-';
+                    const probs = data.metrics.calibrated_probs || {};
+                    const raw = data.metrics.raw_scores || {};
+
+                    document.getElementById('m_dino').innerText = probs.perceptual !== undefined ? `${(probs.perceptual * 100).toFixed(1)}%` : '-';
+                    document.getElementById('m_prnu').innerText = probs.prnu !== undefined ? `${(probs.prnu * 100).toFixed(1)}%` : '-';
+                    document.getElementById('m_ela').innerText = probs.ela !== undefined ? `${(probs.ela * 100).toFixed(1)}%` : '-';
+                    document.getElementById('m_fft').innerText = probs.fft !== undefined ? `${(probs.fft * 100).toFixed(1)}%` : '-';
+                    document.getElementById('m_srm').innerText = raw.srm_uncalibrated !== undefined ? raw.srm_uncalibrated.toFixed(3) : '-';
+                    document.getElementById('m_comp').innerText = data.metrics.compression_quality !== undefined ? `${(data.metrics.compression_quality * 100).toFixed(0)}%` : '-';
                 }
 
                 if (data.heatmaps) {
@@ -513,14 +571,14 @@
 
             if (isDeepOpen) {
                 deepSection.style.display = 'none';
-                deepBtn.innerText = '🔬 Развернуть глубокий форензик-анализ';
+                deepBtn.innerText = '🔬 Развернуть глубокий форензик-анализ (XAI)';
                 isDeepOpen = false;
                 return;
             }
 
             if (!currentFile) return;
 
-            deepBtn.innerText = '⏳ Загрузка подробного анализа...';
+            deepBtn.innerText = '⏳ Извлечение карт внимания и аномалий...';
             const formData = new FormData();
             formData.append('file', currentFile);
 
@@ -540,7 +598,7 @@
 
                     let overlayHtml = '';
                     if (exp.heatmap_b64) {
-                        overlayHtml = `<img class="overlay-preview" src="data:image/jpeg;base64,${exp.heatmap_b64}" alt="Heatmap Overlay">`;
+                        overlayHtml = `<img class="overlay-preview" src="data:image/jpeg;base64,${exp.heatmap_b64}" alt="Anomaly Heatmap Overlay">`;
                     }
 
                     card.innerHTML = `
@@ -559,7 +617,7 @@
                 isDeepOpen = true;
             } catch (err) {
                 alert('Ошибка глубокого анализа: ' + err);
-                deepBtn.innerText = '🔬 Развернуть глубокий форензик-анализ';
+                deepBtn.innerText = '🔬 Развернуть глубокий форензик-анализ (XAI)';
             }
         }
     </script>
