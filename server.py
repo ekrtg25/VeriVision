@@ -21,7 +21,7 @@ import matplotlib.pyplot as plt
 from fastapi import FastAPI, File, Request, UploadFile, status
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
-
+from download_weights import download_models
 pillow_heif.register_heif_opener()
 
 ROOT_DIR = Path(__file__).resolve().parent
@@ -32,6 +32,11 @@ from src.serving.ensemble import VeriVisionEnsemble
 
 app = FastAPI(title="VeriVision MoE v3.5", version="3.5.0")
 templates = Jinja2Templates(directory="templates")
+
+try:
+    download_models()
+except Exception as e:
+    print(f"[WARNING] Не удалось подгрузить веса из GCS: {e}")
 
 detector = VeriVisionEnsemble(models_dir="models")
 
