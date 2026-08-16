@@ -1,223 +1,187 @@
 <div align="center">
 
 # 👁️ VeriVision MoE v3.5
-### Multi-Scale Neural & Physical Forensics Engine for AI Media Authentication
+### Гибридный форензик-детектор AI-сгенерированных изображений
 
 [![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-blue.svg?style=flat&logo=python)](https://www.python.org/)
 [![PyTorch](https://img.shields.io/badge/PyTorch-2.x%20%7C%20CUDA%20%7C%20MPS-ee4c2c.svg?style=flat&logo=pytorch)](https://pytorch.org/)
-[![FastAPI](https://img.shields.io/badge/FastAPI-Production%20Serving-009688.svg?style=flat&logo=fastapi)](https://fastapi.tiangolo.com/)
-[![DINOv2](https://img.shields.io/badge/Backbone-Meta%20DINOv2%20ViT--B%2F14-1877f2.svg?style=flat)](https://github.com/facebookresearch/dinov2)
+[![FastAPI](https://img.shields.io/badge/FastAPI-Serving-009688.svg?style=flat&logo=fastapi)](https://fastapi.tiangolo.com/)
+[![DINOv2](https://img.shields.io/badge/Backbone-DINOv2%20ViT--B%2F14-1877f2.svg?style=flat)](https://github.com/facebookresearch/dinov2)
 
-**Мультимодальный фреймворк детекции синтетических изображений (Midjourney v6, SDXL, Flux, Ideogram, Gemini/Imagen 3) с динамическим подавлением компрессионных помех (Dynamic Gating), калибровкой Плата и попиксельной локализацией генеративных аномалий (Dense Patch XAI).**
+**Детектор синтетических изображений (Midjourney v6, SDXL, Flux, DALL·E 3), объединяющий дообученный перцептивный трансформер (DINOv2) с классической форензикой (ELA, 2D FFT, шумовой остаток) через фьюжн с динамическим гейтингом.**
 
-<br/>
-
-<!-- ==================== ГЛАВНАЯ ГИФКА РАБОТЫ СЕРВИСА ==================== -->
-<!-- Положите запись экрана (5-10 сек: drag-and-drop -> инференс -> раскрытие карт) в docs/media/verivision_demo.gif -->
 <p align="center">
-  <img src="docs/media/verivision_demo.gif" alt="VeriVision Full Workflow Demo" width="850px" style="border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.5);" />
-</p>
-<p align="center">
-  <em>Сквозной процесс: загрузка файла → каскадный анализ (DINOv2, ELA, FFT, PRNU) → генерация карт внимания и вербализация XAI</em>
+  <img src="docs/media/demo.gif" alt="VeriVision demo" width="820px" style="border-radius: 12px;" />
 </p>
 
 </div>
 
 ---
 
-## 📸 Сценарии работы и визуальные примеры (Screenshots)
+## Зачем это нужно
 
-Интерфейс спроектирован так, чтобы не просто выдавать бинарный вердикт, но и объяснять физическую и семантическую природу решения экспертов:
+Большинство детекторов AI-изображений ломаются на практике по двум причинам:
 
-| 🤖 1. Уверенная детекция AI-генерации | 📷 2. Реальное фото (Сложный свет / Сжатие) |
-| :---: | :---: |
-| <img src="docs/media/screen_ai_detected.png" width="420px" alt="AI Generated Detection" /> | <img src="docs/media/screen_real_photo.png" width="420px" alt="Real Photo with Gating" /> |
-| **DINOv2 подсвечивает зоны деноайзинга**, 2D FFT фиксирует гармонические сетки латентного VAE. Вердикт: `AI Generated (96.4%)`. | **Dynamic Gating глушит ELA/FFT**, предотвращая False Positive из-за пережатия в соцсетях. Вердикт: `Authentic Photo (12.1%)`. |
+1. **Shortcut learning.** Модель учится не «видеть подделку», а запоминать шум конкретного датасета. На чистых OOD-генерациях (Midjourney v6, Flux) точность падает почти до случайного угадывания — это видно на итерациях №1–2 и №7 в журнале экспериментов (`experiments/results/`).
+2. **Ложные срабатывания на сжатии.** JPEG-рекомпресс мессенджеров (Telegram, WhatsApp) разрушает высокочастотный спектр реальных фото, и классическая форензика (ELA, FFT) путает это со следами генерации.
 
-<br/>
-
-| 🧩 3. Локальный монтаж (Inpainting / Face Swap) | 🔬 4. Развернутая XAI-аналитика и Heatmaps |
-| :---: | :---: |
-| <img src="docs/media/screen_local_splice.png" width="420px" alt="Local Inpainting Splice" /> | <img src="docs/media/screen_xai_heatmaps.png" width="420px" alt="Explainable Forensics Heatmaps" /> |
-| DINOv2 находит всплеск локальной вероятности ($p_{\text{local}} > 0.7$) при низком общем балле ($p_{\text{global}} < 0.4$). Вердикт: `Local Inpainting`. | Полноразмерные тепловые карты: плотная сетка активаций DINOv2 ($37 \times 37$), градиенты ELA и 2D FFT спектрограмма. |
+VeriVision решает обе проблемы разделением анализа на независимые модальности (семантика + физика пикселя) и адаптивным подавлением классических экспертов при сильном сжатии (Dynamic Gating).
 
 ---
 
-## 📑 Содержание
-- [Проблематика: почему классические детекторы слепнут](#-проблематика-почему-классические-детекторы-слепнут)
-- [Архитектурный дизайн MoE v3.5](#-архитектурный-дизайн-moe-v35)
-  - [1. Content Semantic Prefilter](#1-content-semantic-prefilter)
-  - [2. Fine-Tuned DINOv2 Dense Student (1536d)](#2-fine-tuned-dinov2-dense-student-1536d)
-  - [3. Физический уровень: PRNU, ELA, 2D FFT & SRM](#3-физический-уровень-prnu-ela-2d-fft--srm)
-  - [4. Dynamic Gating & Confidence Capped Fusion](#4-dynamic-gating--confidence-capped-fusion)
-- [Explainable AI (XAI) & Форензик-карты](#-explainable-ai-xai--форензик-карты)
-- [Журнал экспериментов и эволюция модели (9 итераций)](#-журнал-экспериментов-и-эволюция-модели-9-итераций)
-- [Метрики и OOD-валидация](#-метрики-и-ood-валидация)
-- [Инженерная реализация и оптимизация](#-инженерная-реализация-и-оптимизация)
-- [Установка и запуск](#-установка-и-запуск)
-- [Структура репозитория](#-структура-репозитория)
+## Как это работает
+
+```
+Изображение
+     │
+     ├──► Content Prefilter (CLIP zero-shot)         — отсеивает 3D/арт/скриншоты
+     │
+     ├──► DINOv2 ViT-B/14 (partial fine-tune)         ─┐
+     │      CLS-токен + усреднённые патчи (1536d)      │
+     │                                                  │
+     ├──► ELA (Error Level Analysis)                   │  Platt-калибровка
+     ├──► 2D FFT (радиальный спектр)                    ├─  каждого эксперта
+     ├──► Шумовой остаток (высокочастотная статистика)  │
+     │                                                  │
+     └──► JPEG Quality Estimator ──► Dynamic Gating ────┘
+                                          │
+                          Confidence-Weighted Fusion (в пространстве логитов)
+                                          │
+                     Вердикт: REAL / AI / LOCAL SPLICE + heatmap аномалий
+```
+
+### Ключевые механизмы
+
+- **DINOv2 Dense Student.** Бэкбон `facebook/dinov2-base`, разморожены последние 2 блока трансформера + `layernorm`, дифференциальный LR (1.5e-5 для attention, 2e-4 для головы). Классификатор берёт конкатенацию CLS-токена и среднего по патчам (768+768 → 1536), что даёт одновременно глобальный контекст и чувствительность к локальным артефактам. Прогон той же головы по всем 1369 патчам (37×37 при 518px) даёт dense heatmap без Grad-CAM.
+- **Классическая форензика.** ELA ищет следы локального пересжатия (инпейнтинг/монтаж), 2D FFT — гармонические сетки от VAE-декодеров и апскейлеров, шумовой остаток (`compute_prnu_residual` в `src/models/forensics.py`) — упрощённая, PRNU-инспирированная оценка высокочастотного шума по одному изображению (не полноценный сенсорный фингерпринтинг, который требует эталона с нескольких снимков той же камеры — честно фиксируем это ограничение).
+- **Dynamic Gating + Weight Capping.** Вес ELA/FFT линейно снижается при падении оценённого качества JPEG и не может превышать 20% от веса DINOv2 — компрессия не может «перекричать» семантику.
+- **Confidence-Weighted Fusion.** Простое усреднение вероятностей сплющивает итоговую уверенность к 45–60% даже на однозначных случаях. Вместо этого вероятности переводятся в логиты и суммируются с весом `|logit(p)|^k` — эксперт, который «не уверен» (p≈0.5), сам себя выключает из голосования:
+
+```
+w_i = |logit(p_i)| ** k
+fused_logit = Σ(w_i · logit(p_i)) / Σ(w_i)
+final_prob = sigmoid(fused_logit)
+```
+
+Реализация фьюжна и гейтинга — `src/serving/ensemble.py` (`VeriVisionEnsemble`), калибровка — `src/serving/calibration.py` (`CalibratorBank`).
 
 ---
 
-## 🎯 Проблематика: почему классические детекторы слепнут
+## Метрики
 
-Большинство существующих детекторов AI-изображений страдают от двух фундаментальных дефектов:
+Валидация — на разнородном OOD-корпусе: генерации Midjourney v6 / SDXL / DALL·E 3 + реальные фото с камер смартфонов + веб-изображения.
 
-1. **Shortcut Learning (Зубрёжка артефактов датасета):** Модели на базе стандартных ResNet/EfficientNet цепляются за шум конкретной выборки. При переносе на чистые OOD-генерации (Midjourney v6, Flux) точность таких моделей падает до уровня случайного угадывания ($\approx 50\%$).
-2. **Ложные срабатывания на сжатии мессенджеров:** Агрессивный JPEG-рекомпресс (Telegram, WhatsApp) разрушает высокочастотные спектры реальных фотографий. Классическая форензика (ELA, FFT) ошибочно принимает это за следы апскейлеров или монтажа.
+| Конфигурация | Total Val Acc | Phone Real Acc (устойчивость к FP) |
+|---|:---:|:---:|
+| DINOv2 Frozen (linear probe) | 69.6% | 76.7% |
+| DINOv2 partial fine-tune, эпоха 1 | 72.0% | 79.7% |
+| **DINOv2 partial fine-tune + dense pooling, эпоха 2 (текущий чекпоинт)** | **79.6%** | **80.5%** |
+| DINOv2 partial fine-tune, эпохи 3–5 | 74.7% | 68.4% (переобучение) |
+| **Полный ансамбль (DINOv2 + ELA + FFT + шум, Dynamic Gating)** | **84–87%** | **> 85%** |
 
-**VeriVision MoE v3.5** устраняет эти ограничения разделением анализа на независимые модальности (семантическую и физическую) с адаптивной регулировкой доверия (Dynamic Gating).
+Полные цифры и постановка эксперимента — `experiments/results/19_DINOv2 Fine-Tuning & Multi-Scale Dense Fusion`.
 
----
-
-## 🏛️ Архитектурный дизайн MoE v3.5
-
-                       [Входное изображение (JPG/PNG/WEBP/HEIC)]
-                                         │
-                   ┌─────────────────────┴─────────────────────┐
-                   ▼                                           ▼
-         [0. Content Prefilter]                    [JPEG Quality Estimator]
-     (Отсечение 3D/Digital Art)                                │
-                   │                                           ▼
-     ┌─────────────┴─────────────┐                 [Dynamic Gating Multiplier]
-     ▼                           ▼                             │
-┌──────────────────┐       ┌──────────────────┐                    │
-│   DINOv2 ViT     │       │   Физический     │                    │
-│  (CLS + Patches) │       │      уровень     │                    │
-│   (Perceptual)   │       │ (PRNU, ELA, FFT) │                    │
-└────────┬─────────┘       └────────┬─────────┘                    │
-│                          │◄─────────────────────────────┘
-│                          │ (Подавление веса классики при компрессии)
-▼                          ▼
-[Platt Calibr.]            [Platt Calibr.]
-│                          │
-└─────────────┬────────────┘
-▼
-[Confidence-Weighted & Capped Fusion]
-│
-├─► [Финальный вердикт: REAL / AI / SPLICE / ART]
-├─► [AI Probability Score & Confidence Band]
-└─► [Dense Anomaly Heatmap (37×37 -> 518×518)]
-
-
-### 1. Content Semantic Prefilter
-Перед запуском тяжелого инференса Zero-Shot семантический фильтр проверяет, является ли изображение цифровой иллюстрацией, 3D-рендером или скриншотом интерфейса, изолируя нерелевантный контент.
-
-### 2. Fine-Tuned DINOv2 Dense Student (1536d)
-* **Бэкбоун:** `facebook/dinov2-base` (ViT-B/14, 86M параметров), обученный на задаче DINOv2 и инвариантный к цветовым искажениям.
-* **Partial Fine-Tuning:** Разморожены 2 верхних блока трансформера (`encoder.layer.10`, `encoder.layer.11`) и выходной `layernorm`. Дифференциальный LR: $1.5 \cdot 10^{-5}$ для блоков внимания и $2.0 \cdot 10^{-4}$ для головы.
-* **Мультимасштабное представление:** Классификатор принимает конкатенацию CLS-токена ($768$) и среднего пространственного вектора патчей ($768$), формируя дескриптор размерностью **$1536$**.
-* **Dense Patch Evaluation:** Прогон классификатора по всем $1369$ патчам ($37 \times 37$ сетка при $518\text{px}$) строит карту аномалий локального деноайзинга без накладных расходов Grad-CAM.
-
-### 3. Физический уровень: PRNU, ELA, 2D FFT & SRM
-* **PRNU Sensor Trace:** Извлечение остаточного отпечатка кремниевой матрицы фотокамеры (Photo-Response Non-Uniformity). ИИ-генераторы не обладают сенсорным шумом оптического тракта.
-* **Error Level Analysis (ELA):** Анализ градиентов матриц квантования JPEG при контролируемом пересохранении (качество 90) для поиска локального Inpainting.
-* **2D FFT Spectrum:** Поиск радиальных частотных сеток и гармонических пиков, оставляемых латентными декодерами VAE и апскейлерами.
-* **SRM (Spatial Rich Models):** 30 базовых пространственных фильтров стеганоанализа для выявления аномалий эксцесса и асимметрии распределения шума.
-
-### 4. Dynamic Gating & Confidence Capped Fusion
-1. **Dynamic Gating:** При падении оцениваемого качества JPEG-компрессии вес ELA и FFT линейно снижается:
-   $$\text{Weight}_{\text{ELA, FFT}} \leftarrow \text{Weight}_{\text{raw}} \times \max(0.1, \min(1.0, Q_{\text{comp}}))$$
-2. **Weight Capping:** Максимальный вес классических экспертов ограничен $\le 20\%$ от веса DINOv2, что исключает доминирование шума над семантикой.
-3. **Platt Calibration:** Сырые расстояния каждого эксперта независимо калибруются через сигмоидальную регрессию (`CalibratorBank`).
+**Известные ограничения:**
+- Метрики получены на выборке ограниченного размера (~4.7k сэмплов на финальном этапе) — не заявляем это как индустриальный бенчмарк.
+- Шумовой остаток — не настоящий PRNU-фингерпринтинг (см. выше).
+- Content Prefilter — zero-shot на CLIP, не дообучен под конкретный домен.
 
 ---
 
-## 🔍 Explainable AI (XAI) & Форензик-карты
+## Журнал экспериментов
 
-В отличие от black-box моделей, VeriVision возвращает вербализацию физического вклада каждого компонента ансамбля:
-* **DINOv2 Anomaly Map:** Наложение карты активаций проблемных патчей на исходный кадр.
-* **ELA Inconsistency Overlay:** Визуализация зон повторного сжатия (монтажные стыки).
-* **2D FFT Log-Magnitude:** Двумерная спектрограмма распределения пространственных частот.
-* **PRNU Residual:** Индикатор консистентности кремниевого отпечатка сенсора.
+Проект прошёл **19 задокументированных итераций** (`experiments/results/01…19`) — от линейного зонда на CLIP до текущего MoE-ансамбля. Несколько поворотных точек:
 
----
-
-## 🧪 Журнал экспериментов и эволюция модели (9 итераций)
-
-| # | Архитектурная гипотеза | Валидация / OOD Специфика | Итог |
+| № | Гипотеза | Результат | Итог |
 |---|---|---|---|
-| 1 | ConvNeXt + CLIP ViT-B/32 Linear Probing | Recall Fake 2%, EER 41% | ❌ Замороженный CLIP слеп к новым латентным диффузиям |
-| 2 | Heavyweight CLIP ViT-L/14 Probe | Recall 2%, EER 49% | ❌ Увеличение параметров без адаптации признаков не работает |
-| 3 | DIRE (SD 1.5 Inversion Error) | $\Delta$ ошибки Real/Fake = 0.009 (уровень шума) | ❌ Слишком медленно для инференса, сигнал размывается |
-| 4 | 1D Radial FFT Profile + Random Forest | Recall Fake 84%, но Recall Real 67% | ✅ Высокий recall на фейках, но большой False Positive на реальных фото |
-| 5 | Hybrid Ensemble (ConvNeXt + FFT + SRM) | Total Acc 92.5% *(на синтетической выборке N=200)* | ⚠️ Вероятности сплющивались в диапазон 45–60% из-за некорректного фьюжна |
-| 6 | Platt Scaling + Logistic Stacking Meta-Model | Acc 75% | ❌ Переобучение мета-модели на малом калибровочном сете |
-| 7 | Scaled Fusion на датасете AI-vs-Real (~50k) | Acc упала до 61.5%, Recall 29% | ❌ Обнаружен шорткат: сеть выучила шум трейна и перестала видеть Midjourney v6 |
-| 8 | Anti-Artifact Regularization + Defactify (42k) | Acc 86.0%, Precision 0.90, F1 0.89 | ✅ Преодоление шорткатов на Midjourney/SDXL |
-| **9** | **DINOv2 Partial Fine-Tuning + Dense Patches + Dynamic Gating (MoE v3.5)** | **Phone Real Acc: 80.45% \| Total Val: 79.63% \| Комплексный ансамбль: 85–87%** | 🚀 **Production-состояние системы** |
+| 1–2 | Linear probing на замороженном CLIP ViT-B/32, ViT-L/14 | Recall Fake 2%, EER 41–49% | ❌ Замороженные признаки слепы к новым диффузионным моделям |
+| 3 | DIRE (SD 1.5 reconstruction error) | Δ ошибки Real/Fake на уровне шума | ❌ Сигнал не детектируется, к тому же дорого по инференсу |
+| 4–5 | FFT + Random Forest, затем гибридный ансамбль (ConvNeXt+FFT+SRM) | Acc 92.5% на N=200, но вероятности «сплющены» к 45–60% | ⚠️ Нашли проблему наивного усреднения вероятностей |
+| 7 | Масштабирование на датасет ~50k | Acc упала до 61.5% | ❌ Сеть выучила шум трейна вместо семантики (shortcut) |
+| 9 | Dynamic Gating + OOD-фильтрация | — | ✅ Устойчивость к сжатию соцсетей |
+| 15 | Uncertainty collapse | Обнаружено падение уверенности на 34% при простом averaging | ⚠️ Обосновало переход на confidence-weighted logit fusion |
+| 17 | Смена бэкбона на DINOv2 | — | ✅ Отказ от ConvNeXt в пользу DINOv2 ViT-B/14 |
+| **19** | **DINOv2 partial fine-tune + dense multi-scale fusion (текущая версия)** | **Val Acc 79.6%, Phone Real 80.5%, ансамбль 84–87%** | 🚀 **Текущее состояние** |
 
-> **Ключевой инсайт эксперимента №9:** Частичная разморозка 2 верхних слоев DINOv2 на разрешении $518\times518$ с мультимасштабным пулингом `[CLS; Spatial_Mean]` позволила трансформеру одновременно видеть и глобальную композицию кадра, и микротекстуру деноайзинга.
-
----
-
-## 📊 Метрики и OOD-валидация
-
-Валидация проводилась на разнородном OOD-корпусе (смесь генераций Midjourney v6, SDXL, DALL-E 3, реальных фото с камер смартфонов Apple/Samsung/Google и веб-изображений высокой четкости).
-
-### Сравнение этапов эволюции перцептивного блока:
-
-| Конфигурация модели | Phone Real Acc (Специфичность) | Total Val Acc | OOD Robustness |
-|---|:---:|:---:|:---:|
-| DINOv2 Frozen (Linear Probe 768d) | 76.69% | 69.59% | Низкая (пропуск артефактов) |
-| DINOv2 Partial Fine-Tuned (Эпоха 1) | 79.70% | 71.99% | Средняя |
-| **DINOv2 Partial FT + Dense Pool (Эпоха 2 — Best)** | **80.45%** | **79.63%** | **Высокая (оптимум обобщения)** |
-| DINOv2 Partial FT (Эпохи 3–5) | 68.42% *(деградация)* | 74.68% | Переобучение на шум трейна |
-| **Комплексный ансамбль VeriVision MoE v3.5** | **> 85%** | **84–87%** | **Мультимодальная устойчивость** |
+Отброшенные архитектуры (CLIP-probe, DIRE, старый частотный детектор) сохранены в `research/archive/` и разобраны в `docs/EXPERIMENTS_ARCHIVE.md` — сознательно не удалялись, чтобы показать, какие пути привели в тупик и почему.
 
 ---
 
-## ⚡ Инженерная реализация и оптимизация
+## Установка и запуск
 
-* **Serving:** Асинхронный сервер на базе **FastAPI + Uvicorn** с эндпоинтами потокового форензик-анализа (`/api/analyze` и `/api/deep-analysis`).
-* **Аппаратное ускорение:** Поддержка инференса на **NVIDIA CUDA** и **Apple Silicon (MPS)** с автоматическим fallback на CPU.
-* **Mixed Precision (AMP FP16):** Использование `torch.amp` ускорило прогон ViT-B/14 в 3 раза при минимальном потреблении VRAM.
-* **UI/UX:** Минималистичный дизайн (Bento Grid, JetBrains Mono типографика, Glassmorphism) на шаблонизаторе Jinja2.
-* **Robust File Handling:** Валидация форматов `.jpg`, `.jpeg`, `.png`, `.webp`, `.heic`, `.heif` (через `pillow_heif`) и защита от переполнения буфера (лимит 25 МБ).
+### 1. Окружение
 
----
-
-## 🚀 Установка и запуск
-
-### 1. Клонирование репозитория и окружение
 ```bash
-git clone [https://github.com/ekrtg25/VeriVision.git](https://github.com/ekrtg25/VeriVision.git)
+git clone https://github.com/ekrtg25/VeriVision.git
 cd VeriVision
 
 python -m venv venv
-source venv/bin/activate  # Для Windows: venv\Scripts\activate
+source venv/bin/activate        # Windows: venv\Scripts\activate
+
 pip install -r requirements.txt
-2. Загрузка весов моделей
-Поместите обученные чекпоинты в директорию models/:
+pip install torch torchvision transformers open-clip-torch   # см. примечание ниже
+```
 
-models/calibrated_head.pth — веса Fine-Tuned DINOv2 и классификатора (1536d)
+> ⚠️ На момент написания `requirements.txt` не фиксирует `torch`, `torchvision`, `transformers` и `open-clip-torch` — они ставятся отдельно (в `Dockerfile` torch/torchvision ставятся отдельной командой с CPU-индексом именно по этой причине). Если планируете, чтобы `pip install -r requirements.txt` сразу поднимал рабочее окружение — стоит добавить их в файл явно.
 
-models/calibrators.pkl — калибровочные сигмоиды для PRNU/ELA/FFT
+### 2. Веса моделей
 
-3. Запуск веб-сервиса
-Bash
+Веса не входят в репозиторий (см. `.gitignore`) и должны быть помещены в `models/`:
+
+- `models/calibrated_head.pth` — дообученный DINOv2 + классификатор (обучается по `research/scripts/11_baseline_DINOv2/` и `research/scripts/08_train_backbone/`)
+- `models/calibrators.pkl` — Platt-калибраторы для ELA/FFT/шумового эксперта (`scripts/fit_calibrators.py`)
+
+### 3. Запуск сервиса
+
+```bash
 uvicorn server:app --host 0.0.0.0 --port 8080 --reload
-Интерфейс будет доступен по адресу: http://localhost:8080
+```
 
-📁 Структура репозитория
+Интерфейс — `http://localhost:8080`. Есть `Dockerfile` для контейнерного деплоя (проверен под Cloud Run: слушает `$PORT`, ставит torch CPU-only).
+
+### 4. Оценка на OOD-датасете
+
+```bash
+python scripts/prepare_ood_datasets.py   # если данные ещё не скачаны
+python scripts/evaluate_ood.py
+```
+
+---
+
+## Структура репозитория
+
+```
 VeriVision/
-├── server.py                   # Основной FastAPI сервер и API эндпоинты
-├── templates/
-│   └── index.html              # Bento UI веб-интерфейс с темной темой и XAI
+├── server.py                    # FastAPI приложение, точка входа
+├── templates/index.html         # веб-интерфейс (Jinja2)
 ├── src/
 │   ├── serving/
-│   │   ├── ensemble.py         # VeriVisionEnsemble: Dynamic Gating, Capped Fusion, DINOv2
-│   │   └── calibration.py      # CalibratorBank (Platt Scaling)
+│   │   ├── ensemble.py          # VeriVisionEnsemble: fusion + dynamic gating + DINOv2
+│   │   ├── calibration.py       # CalibratorBank (Platt scaling)
+│   │   └── patch_aggregation.py # агрегация dense-патчей в heatmap
 │   ├── models/
-│   │   ├── forensics.py        # Извлечение ELA, оценка качества JPEG
-│   │   ├── fft_module.py       # 2D FFT спектральный анализатор
-│   │   ├── srm_module.py       # SRM фильтры и расчет моментов шума
-│   │   └── prefilter.py        # Semantic Content Prefilter
-│   └── data/                   # Аугментации (RandomJPEGCompression, Blurs)
+│   │   ├── perceptual_student.py# архитектура DINOv2-классификатора
+│   │   ├── forensics.py         # ELA, оценка JPEG-качества, шумовой остаток
+│   │   ├── fft_module.py        # 2D FFT спектральный анализатор
+│   │   ├── srm_module.py        # SRM-фильтры
+│   │   └── prefilter.py         # CLIP zero-shot content prefilter
+│   ├── data/                    # датасеты, аугментации, загрузка HF-датасетов
+│   └── evaluation/               # метрики, robustness-тесты
+├── scripts/                     # подготовка данных, калибровка, OOD-оценка
 ├── research/
-│   ├── notebooks/              # Исследовательские Jupyter-ноутбуки и Kaggle скрипты
-│   └── experiments_log.md      # Детальный лог гипотез и метрик
-├── models/                     # Директория предобученных весов (*.pth, *.pkl)
-├── docs/                       # Медиа-материалы для документации
-│   └── media/                  # Скриншоты работы и демо-гифка
-└── requirements.txt            # Зависимости проекта
+│   ├── scripts/01…11/           # тренировочные скрипты по этапам эксперимента
+│   └── archive/                 # отброшенные архитектуры (CLIP-probe, DIRE, ConvNeXt-детектор)
+├── experiments/results/         # журнал из 19 экспериментов — хронология решений
+├── docs/
+│   ├── EXPERIMENTS_ARCHIVE.md   # архивный отчёт по CLIP-этапу
+│   ├── ROBUSTNESS_ARCHIVE.md    # архивный отчёт по стресс-тестам
+│   └── media/                   # демо и скриншоты
+├── Dockerfile
+└── requirements.txt
+```
+
+---
+
+## Стек
+
+PyTorch / `transformers` (DINOv2), FastAPI + Uvicorn, OpenCV, scikit-learn (калибровка), open_clip (prefilter), Jinja2. Инференс поддерживает CUDA, Apple Silicon (MPS) и CPU-fallback.
