@@ -6,12 +6,6 @@ import torch
 from torch.utils.data import Dataset
 
 class ForensicsDataset(Dataset):
-    """
-    Dataset для загрузки изображений из структуры:
-    root_dir/
-      ├── real/  (label 0)
-      └── fake/  (label 1)
-    """
     VALID_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.bmp', '.webp'}
 
     def __init__(self, root_dir: str, transform: Optional[Callable] = None):
@@ -30,7 +24,6 @@ class ForensicsDataset(Dataset):
                 print(f"Папка не найдена: {class_dir}")
                 continue
                 
-            # Проходим по всем файлам внутри папки real / fake
             for file_path in class_dir.iterdir():
                 if file_path.is_file() and file_path.suffix.lower() in self.VALID_EXTENSIONS:
                     self.samples.append((file_path, label))

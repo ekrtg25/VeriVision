@@ -28,7 +28,6 @@ def save_image_safe(src: Path, dst: Path) -> bool:
 def main():
     print("[*] Загрузка компактного среза с Kaggle...")
     
-    # Скачиваем компактный проверенный срез (476 MB вместо 52 GB)
     path = kagglehub.dataset_download("cashbowman/ai-generated-images-vs-real-images")
     src_dir = Path(path)
     print(f"[+] Распаковано во временный кэш: {src_dir}")
@@ -70,7 +69,7 @@ def main():
                 added_real += 1
 
     print("\n" + "=" * 55)
-    print(f"[+] Успешно добавлено без скачивания 52 ГБ:")
+    print(f"[+] Успешно")
     print(f"    - AI / Fake: {added_fake} шт")
     print(f"    - Real Web:  {added_real} шт")
     print("=" * 55)

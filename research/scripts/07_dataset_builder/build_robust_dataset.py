@@ -14,14 +14,11 @@ from tqdm import tqdm
 
 
 def apply_messenger_compression(img: Image.Image) -> Image.Image:
-    """Эмулирует пайплайн сжатия Telegram / WhatsApp / VK."""
     w, h = img.size
-    # 1. Ресайз длинной стороны до 1280px (стандарт мессенджеров)
     if max(w, h) > 1280:
         scale = 1280.0 / max(w, h)
         img = img.resize((int(w * scale), int(h * scale)), Image.Resampling.BILINEAR)
 
-    # 2. Агрессивное пересжатие в JPEG (quality 40-75)
     quality = random.randint(40, 75)
     buffer = io.BytesIO()
     img.convert("RGB").save(buffer, format="JPEG", quality=quality)
@@ -41,7 +38,6 @@ def build_curated_dataset(
         f"[+] Инициализация стриминга GenImage (Цель: {samples_per_class} Real / {samples_per_class} Fake)..."
     )
 
-    # Стримим Tiny-GenImage из Hugging Face
     dataset = load_dataset(
         "TheKernel01/Tiny-GenImage", split="train", streaming=True
     )
@@ -56,7 +52,6 @@ def build_curated_dataset(
         label = sample["label"]  # 0: Real, 1: Fake
         generator = sample.get("generator", -1)
 
-        # 30% шанс подвергнуть изображение артефактам сжатия
         if random.random() < 0.35:
             img = apply_messenger_compression(img)
 

@@ -13,7 +13,6 @@ from PIL import Image
 from tqdm import tqdm
 from huggingface_hub import snapshot_download
 
-# Добавляем корень проекта в sys.path
 ROOT_DIR = Path(__file__).resolve().parent.parent
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
@@ -32,7 +31,6 @@ def main():
     local_dir = Path(args.download_dir)
     print(f"[*] [1/2] Скачивание датасета {args.repo_id} в папку: {local_dir.resolve()}...")
 
-    # Скачивает репозиторий (если файлы уже есть, snapshot_download быстро проверит кэш и не будет качать заново)
     snapshot_download(
         repo_id=args.repo_id,
         repo_type="dataset",
@@ -45,7 +43,6 @@ def main():
     forensics = ForensicsExtractor()
     fft = FFTSpectralExtractor()
 
-    # Собираем все изображения
     valid_exts = {".jpg", ".jpeg", ".png", ".webp"}
     image_files = [p for p in local_dir.rglob("*") if p.suffix.lower() in valid_exts]
 
@@ -58,7 +55,6 @@ def main():
     results = []
     for img_path in tqdm(image_files, desc="Анализ форензики"):
         try:
-            # Определение метки СТРОГО по имени конкретной папки, где лежит файл (1 = AI/Fake, 0 = Real)
             parent_folder = img_path.parent.name.lower()
             
             if "real" in parent_folder or "photo" in parent_folder or "authentic" in parent_folder:
@@ -66,14 +62,13 @@ def main():
             elif any(k in parent_folder for k in ["fake", "ai", "generated", "synth"]):
                 label = 1
             else:
-                # Если в имени папки нет маркера, проверяем родителя уровнем выше (например, train/real/...)
                 grandparent_folder = img_path.parent.parent.name.lower()
                 if "real" in grandparent_folder:
                     label = 0
                 elif any(k in grandparent_folder for k in ["fake", "ai", "generated", "synth"]):
                     label = 1
                 else:
-                    continue  # Пропускаем файл, если класс не удалось однозначно определить
+                    continue 
 
             img = Image.open(img_path).convert("RGB")
             img_np = np.asarray(img)
@@ -90,7 +85,6 @@ def main():
                 "label": label
             })
         except Exception as e:
-            # Пропускаем поврежденные файлы
             continue
 
     df = pd.DataFrame(results)

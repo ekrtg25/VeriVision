@@ -11,7 +11,7 @@ from tqdm import tqdm
 DATASET_NAME = "Parveshiiii/AI-vs-Real"
 OUTPUT_DIR = Path("data/parveshiiii_ai_vs_real")
 
-VAL_FRACTION = 0.1  # доля на валидацию, если у датасета нет отдельного test-сплита
+VAL_FRACTION = 0.1 
 SEED = 42
 
 IMAGE_COLUMN_CANDIDATES = ("image", "img")
@@ -47,7 +47,6 @@ def build_label_resolver(ds, label_col: str):
     означают."""
     feature = ds.features[label_col]
 
-    # ClassLabel-колонка — самый надёжный случай: имена классов заданы автором датасета
     if hasattr(feature, "int2str"):
         names = [n.lower() for n in feature.names]
         print(f"ℹ️  Колонка меток '{label_col}' — ClassLabel, классы: {feature.names}")
@@ -58,7 +57,6 @@ def build_label_resolver(ds, label_col: str):
 
         return resolve
 
-    # Фолбэк: сырые int/str значения без схемы ClassLabel
     print(f"ℹ️  Колонка меток '{label_col}' — без схемы ClassLabel, определяю эвристикой по значению.")
 
     def resolve(value) -> str:
@@ -112,11 +110,9 @@ def download_and_distribute():
     counts = {"train": {"real": 0, "fake": 0}, "val": {"real": 0, "fake": 0}}
 
     if "test" in ds_dict:
-        # Родной test-сплит есть — используем его как val, ничего резать не надо
         save_split(ds_dict["train"], "train", counts, image_col, label_col, resolve_label)
         save_split(ds_dict["test"], "val", counts, image_col, label_col, resolve_label)
     else:
-        # Своего test-сплита нет — режем единственный train сами
         print(f"ℹ️  Отдельного test-сплита нет, делю 'train' сам: {1 - VAL_FRACTION:.0%} train / {VAL_FRACTION:.0%} val")
         full = ds_dict["train"].shuffle(seed=SEED)
         val_size = int(len(full) * VAL_FRACTION)

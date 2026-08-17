@@ -13,7 +13,6 @@ WEIGHTS_FILES = [
 def download_models():
     MODELS_DIR.mkdir(parents=True, exist_ok=True)
     
-    # Если все файлы уже на месте, пропускаем
     if all((MODELS_DIR / f).exists() for f in WEIGHTS_FILES):
         print("[+] Все веса уже присутствуют локально.")
         return
@@ -32,7 +31,6 @@ def download_models():
                 print(f"[OK] {filename} успешно сохранен в models/")
     except Exception as e:
         print(f"[!] Ошибка скачивания весов из Cloud Storage: {e}")
-        # Если веса критичны, райзим ошибку
         raise e
 
 if __name__ == "__main__":

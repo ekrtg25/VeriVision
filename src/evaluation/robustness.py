@@ -6,7 +6,6 @@ from PIL import Image
 from torch.utils.data import DataLoader
 from sklearn.metrics import roc_auc_score, accuracy_score
 
-# Импортируем датасет и фабрику моделей из корня
 from src.data.dataset import ForensicsDataset
 from train import get_model 
 
@@ -99,7 +98,7 @@ if __name__ == "__main__":
     try:
         model.load_state_dict(torch.load(weights_path, map_location=device, weights_only=True))
     except FileNotFoundError:
-        print(f"❌ Файл весов не найден: {weights_path}. Сначала запустите обучение этой модели!")
+        print(f"❌ Файл весов не найден: {weights_path}.")
         exit(1)
     
     evaluate_robustness(model, device, val_dir="data/raw/val")

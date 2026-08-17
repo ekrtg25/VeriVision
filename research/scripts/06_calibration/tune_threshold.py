@@ -9,8 +9,6 @@ from src.serving.ensemble import HybridEnsembleDetector
 def main():
     print("[sys] Initializing Calibrated Ensemble Detector...")
     engine = HybridEnsembleDetector()
-    
-    # Пути к валидационной выборке
     real_files = glob.glob("data/raw/val/real/*.*")
     fake_files = glob.glob("data/raw/val/fake/*.*")
     

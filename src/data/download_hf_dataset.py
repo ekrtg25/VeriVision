@@ -8,7 +8,6 @@ from tqdm import tqdm
 def download_and_distribute():
     output_dir = Path("data/raw")
     
-    # 1. Очищаем старые данные и создаем структуру
     if output_dir.exists():
         shutil.rmtree(output_dir)
 
@@ -18,10 +17,8 @@ def download_and_distribute():
 
     print("📦 Скачиваем датасет целиком (появится стандартный прогресс-бар Hugging Face)...")
     
-    # Классическая загрузка всего датасета (без streaming)
     ds_full = load_dataset("Hemg/AI-Generated-vs-Real-Images-Datasets")
     
-    # В этом датасете все данные лежат в сплите 'train'
     ds = ds_full["train"]
 
     print(f"\n✅ Датасет загружен. Всего изображений в архиве: {len(ds)}")
@@ -46,15 +43,12 @@ def download_and_distribute():
         label = item.get("label", item.get("labels", item.get("target")))
         cls_name = "fake" if label in [1, "1", "fake", "AI", "ai"] else "real"
 
-        # Наполняем Train
         if counts["train"][cls_name] < num_train:
             idx = counts["train"][cls_name]
             save_path = output_dir / "train" / cls_name / f"{cls_name}_{idx:04d}.jpg"
             img.convert("RGB").save(save_path, "JPEG")
             counts["train"][cls_name] += 1
             pbar.update(1)
-            
-        # Наполняем Val
         elif counts["val"][cls_name] < num_val:
             idx = counts["val"][cls_name]
             save_path = output_dir / "val" / cls_name / f"{cls_name}_{idx:04d}.jpg"
@@ -62,7 +56,6 @@ def download_and_distribute():
             counts["val"][cls_name] += 1
             pbar.update(1)
 
-        # Проверяем, собрали ли мы всё, что нужно
         train_done = (counts["train"]["real"] >= num_train and counts["train"]["fake"] >= num_train)
         val_done = (counts["val"]["real"] >= num_val and counts["val"]["fake"] >= num_val)
 

@@ -8,7 +8,6 @@ import numpy as np
 
 class SRMFeatureExtractor:
     def __init__(self):
-        # 3 Standard High-Pass SRM linear filters (1st, 2nd, and 3rd order residuals)
         self.filters = [
             np.array([[0, 0, 0], [0, -1, 1], [0, 0, 0]], dtype=np.float32),
             np.array([[0, 1, 0], [1, -4, 1], [0, 1, 0]], dtype=np.float32),

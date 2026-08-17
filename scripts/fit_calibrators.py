@@ -1,23 +1,4 @@
-"""
-Offline fitting of Platt-scaling calibrators for the classical forensic
-experts (ELA, PRNU, FFT), so their raw scores become genuine calibrated
-probabilities before entering VeriVisionEnsemble's logit-fusion step.
 
-Usage:
-    python scripts/fit_calibrators.py --csv data/calibration_scores.csv \
-        --out models/calibrators.pkl
-
-Expected CSV columns:
-    ela_raw, prnu_raw, fft_raw, label
-    (label: 1 = AI-generated/fake, 0 = real photo)
-
-How to generate that CSV:
-    Run ForensicsExtractor.compute_ela_score / compute_prnu_residual and
-    FFTSpectralExtractor.extract_spectral_features over a labeled
-    validation set that was held out of the DINOv2 student's own training
-    data, so the calibration isn't fit on data the student (and therefore
-    the whole pipeline) has already memorized.
-"""
 
 import argparse
 import sys

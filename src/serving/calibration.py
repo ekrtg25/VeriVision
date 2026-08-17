@@ -22,23 +22,19 @@ class PlattCalibrator:
 
     def predict_proba(self, raw_score: float) -> float:
         z = self.a * raw_score + self.b
-        # Ограничиваем диапазон z во избежание overflow в exp
         z = np.clip(z, -15.0, 15.0)
         return float(1.0 / (1.0 + np.exp(-z)))
 
     def fit(self, raw_scores: np.ndarray, labels: np.ndarray, fit_intercept: bool = False) -> "PlattCalibrator":
         from sklearn.linear_model import LogisticRegression
 
-        # 1. Находим точку нейтральности (медиану распределения признака)
         x_center = float(np.median(raw_scores))
         centered_scores = raw_scores - x_center
 
-        # 2. Обучаем наклон без свободного члена
         lr = LogisticRegression(fit_intercept=False, C=1.0)
         lr.fit(centered_scores.reshape(-1, 1), labels)
         
         self.a = float(lr.coef_[0][0])
-        # При x = x_center аргумент z = a*(x_center) + b = 0 => p = 0.5 (logit = 0)
         self.b = float(-self.a * x_center)
         return self
 
@@ -51,7 +47,6 @@ class PlattCalibrator:
 
 
 class CalibratorBank:
-    """Loads/saves a dict of {expert_name: PlattCalibrator}."""
 
     DEFAULT_EXPERTS = ("ela", "prnu", "fft")
 

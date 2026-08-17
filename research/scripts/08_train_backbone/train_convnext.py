@@ -24,9 +24,6 @@ ROOT_DIR = Path(__file__).resolve().parent.parent.parent.parent
 sys.path.append(str(ROOT_DIR))
 
 
-# -------------------------------------------------------------
-# 1. Кастомные In-The-Wild Аугментации (Симуляция мессенджеров)
-# -------------------------------------------------------------
 class RandomJPEGCompression:
     def __init__(self, quality_min=40, quality_max=95, p=0.5):
         self.quality_min = quality_min
@@ -42,10 +39,6 @@ class RandomJPEGCompression:
             return Image.open(buf)
         return img
 
-
-# -------------------------------------------------------------
-# 2. Датасет
-# -------------------------------------------------------------
 class RobustAIDataset(Dataset):
     def __init__(self, file_paths, labels, transform=None):
         self.file_paths = file_paths
@@ -70,9 +63,6 @@ class RobustAIDataset(Dataset):
         return img, label
 
 
-# -------------------------------------------------------------
-# 3. Модель ConvNeXt-Tiny с кастомной бинарной головой
-# -------------------------------------------------------------
 class VeriVisionBackbone(nn.Module):
     def __init__(self, pretrained=True):
         super().__init__()
@@ -90,9 +80,6 @@ class VeriVisionBackbone(nn.Module):
         return self.backbone(x).squeeze(-1)
 
 
-# -------------------------------------------------------------
-# 4. Основной пайплайн обучения
-# -------------------------------------------------------------
 def train_model(
     train_dir_real: str,
     train_dir_fake: str,
@@ -113,7 +100,6 @@ def train_model(
     all_paths = real_files + fake_files
     all_labels = [0] * len(real_files) + [1] * len(fake_files)
 
-    # Перемешивание и Train/Val сплит (85% / 15%)
     combined = list(zip(all_paths, all_labels))
     random.seed(42)
     random.shuffle(combined)
@@ -122,8 +108,6 @@ def train_model(
     split_idx = int(len(all_paths) * 0.85)
     train_paths, val_paths = all_paths[:split_idx], all_paths[split_idx:]
     train_labels, val_labels = all_labels[:split_idx], all_labels[split_idx:]
-
-    # Пайплайны аугментаций
     train_transform = T.Compose([
         RandomJPEGCompression(quality_min=45, quality_max=95, p=0.5),
         T.RandomResizedCrop(224, scale=(0.8, 1.0)),
@@ -155,7 +139,6 @@ def train_model(
         pin_memory=True
     )
 
-    # Инициализация модели
     model = VeriVisionBackbone(pretrained=True).to(device)
 
     criterion = nn.BCEWithLogitsLoss()
@@ -217,7 +200,6 @@ def train_model(
         epoch_val_acc = val_correct / val_total
         print(f"\n[Epoch {epoch}] Val Loss: {val_loss/val_total:.4f} | Val Accuracy: {epoch_val_acc*100:.2f}%")
 
-        # Сохранение лучших весов
         if epoch_val_acc > best_val_acc:
             best_val_acc = epoch_val_acc
             os.makedirs(os.path.dirname(save_path), exist_ok=True)
@@ -226,7 +208,6 @@ def train_model(
 
 
 if __name__ == "__main__":
-    # Укажи папку с большим датасетом (например, скачанным из GenImage/HuggingFace)
     DATA_REAL = "data/robust_v1/real"
     DATA_FAKE = "data/robust_v1/fake"
 

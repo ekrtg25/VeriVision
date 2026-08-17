@@ -24,7 +24,7 @@ def _logit(p: torch.Tensor, eps: float = 1e-6) -> torch.Tensor:
 def aggregate_perceptual(
     cls_logit: torch.Tensor,
     loc_map_logits: torch.Tensor,
-    topk_ratio: float = 0.02,          # Берем топ-2% самых аномальных патчей (~27 шт вместо 68)
+    topk_ratio: float = 0.02,        
     local_activation_threshold: float = 0.65,
 ) -> PerceptualAggregate:
     flat_patch_logits = loc_map_logits.flatten()
@@ -35,13 +35,9 @@ def aggregate_perceptual(
     p_global = torch.sigmoid(cls_logit)
     p_local = torch.sigmoid(local_logit)
 
-    # Адаптивное слияние вместо жесткого Noisy-OR:
-    # Если локальный сигнал слабый (< 0.65), он не должен раздувать глобальный скор
     if p_local > local_activation_threshold and p_global < 0.5:
-        # Сценарий локального сплайсинга: сохраняем высокий p_local для детекции Local Splice
         p_fused = 0.4 * p_global + 0.6 * p_local
     else:
-        # Обычный режим: базовый вердикт формирует глобальный CLS-токен
         p_fused = 0.85 * p_global + 0.15 * p_local
 
     fused_logit = _logit(p_fused)

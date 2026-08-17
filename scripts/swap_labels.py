@@ -3,7 +3,6 @@ from pathlib import Path
 
 base = Path("data/training_corpus")
 
-# 1. Свап для train
 train_fake = base / "train" / "fake"
 train_real_web = base / "train" / "real" / "web_hf"
 temp_train = base / "train" / "temp_swap"
@@ -12,7 +11,6 @@ train_fake.rename(temp_train)
 train_real_web.rename(train_fake)
 temp_train.rename(train_real_web)
 
-# 2. Свап для val
 val_fake = base / "val" / "fake"
 val_real_web = base / "val" / "real" / "web_hf"
 temp_val = base / "val" / "temp_swap"
